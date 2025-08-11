@@ -22,17 +22,91 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Test API key for integration testing
+TEST_API_KEY = "s9dsge0vjrbndoqr9xyq"
+
+
+async def test_create_and_resolve_question(session):
+    """Test the full create -> resolve question flow."""
+    print("🔧 Testing create_question -> resolve_question flow...")
+    
+    # Step 1: Create a test question
+    try:
+        from datetime import datetime, timedelta
+        resolve_date = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
+        
+        create_result = await session.call_tool("create_question", {
+            "title": "MCP Integration Test Question",
+            "resolveBy": resolve_date,
+            "forecast": 0.5,
+            "apiKey": TEST_API_KEY,
+            "tags": ["test", "mcp"]
+        })
+        
+        if not create_result.content:
+            print("❌ No content in create_question response")
+            return False
+            
+        create_content = create_result.content[0].text
+        print(f"📝 Create response: {create_content}")
+        
+        if "successfully" not in create_content:
+            print("❌ Question creation failed")
+            return False
+            
+        # Extract question ID from response URL
+        # Response format: "Question created successfully: https://fatebook.io/q/title--QUESTION_ID"
+        if "https://fatebook.io/q/" not in create_content:
+            print("❌ Could not find Fatebook URL in create response")
+            return False
+            
+        # Extract question ID from the URL
+        url_start = create_content.find("https://fatebook.io/q/")
+        url = create_content[url_start:].strip()
+        # Question ID is after the last double dash
+        if "--" not in url:
+            print("❌ Could not parse question ID from URL format")
+            return False
+            
+        question_id = url.split("--")[-1]
+        
+        if not question_id:
+            print("❌ Could not extract question ID from URL")
+            return False
+            
+        print(f"✅ Created question with ID: {question_id}")
+        
+        # Step 2: Resolve the question
+        resolve_result = await session.call_tool("resolve_question", {
+            "questionId": question_id,
+            "resolution": "YES",
+            "questionType": "BINARY",
+            "apiKey": TEST_API_KEY
+        })
+        
+        if not resolve_result.content:
+            print("❌ No content in resolve_question response")
+            return False
+            
+        resolve_content = resolve_result.content[0].text
+        print(f"✅ Resolve response: {resolve_content}")
+        
+        if "successfully" in resolve_content:
+            print("✅ Successfully created and resolved test question!")
+            return True
+        else:
+            print("❌ Question resolution failed")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Error in create/resolve flow: {e}")
+        return False
+
 
 async def test_fatebook_server():
     """Test the Fatebook MCP server by calling list_questions tool."""
     
-    # Verify API key is available
-    api_key = os.getenv("FATEBOOK_API_KEY")
-    if not api_key:
-        print("❌ Error: FATEBOOK_API_KEY not found in environment")
-        return False
-    
-    print(f"✅ Found API key: {api_key[:10]}...")
+    print(f"✅ Using test API key: {TEST_API_KEY[:10]}...")
     
     async with AsyncExitStack() as stack:
         # Start the server
@@ -64,11 +138,15 @@ async def test_fatebook_server():
                 print("❌ Error: list_questions tool not found")
                 return False
             
-            # Call the list_questions tool with a limit
+            # Call the list_questions tool with a limit using test API key
             print("📡 Calling list_questions tool...")
-            result = await session.call_tool("list_questions", {"limit": 3})
+            result = await session.call_tool("list_questions", {
+                "limit": 3, 
+                "apiKey": TEST_API_KEY
+            })
             
             # Check the result
+            list_success = False
             if result.content:
                 content = result.content[0].text
                 if "Questions data:" in content:
@@ -81,7 +159,7 @@ async def test_fatebook_server():
                             parsed = json.loads(json_data)
                             if "items" in parsed:
                                 print(f"✅ Found {len(parsed['items'])} questions")
-                                return True
+                                list_success = True
                             else:
                                 print("❌ Error: No 'items' field in response")
                                 return False
@@ -94,6 +172,11 @@ async def test_fatebook_server():
             else:
                 print("❌ Error: No content in response")
                 return False
+            
+            # Test create and resolve question flow
+            create_resolve_success = await test_create_and_resolve_question(session)
+            
+            return list_success and create_resolve_success
                 
         except Exception as e:
             print(f"❌ Error during testing: {e}")
