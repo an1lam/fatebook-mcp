@@ -88,3 +88,6 @@ Base URL: `https://fatebook.io/api/v0/`
 - Forecast values must be between 0 and 1
 - Use ISO 8601 format for datetime fields
 - OpenAPI spec available at https://fatebook.io/api/openapi.json
+
+## MCP Documentation
+- LLM compatible MCP documentation can be viewed here: https://modelcontextprotocol.io/llms-full.txt
