@@ -78,13 +78,16 @@ async def list_questions(
 
 
 @mcp.tool()
-async def get_question(ctx: Context, questionId: str, apiKey: str = "") -> str:
-    """Get detailed information about a specific Fatebook question"""
+async def get_question(ctx: Context, questionId: str, apiKey: str = "") -> Question:
+    """Get detailed information about a specific Fatebook question
+    
+    Returns a structured Question object with all available fields.
+    """
     
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
         await ctx.error("API key is required but not provided")
-        return "Error: API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
+        raise ValueError("API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)")
     
     params = {"apiKey": api_key, "questionId": questionId}
     
@@ -100,16 +103,19 @@ async def get_question(ctx: Context, questionId: str, apiKey: str = "") -> str:
             question_data = response.json()
             await ctx.info(f"Successfully retrieved question {questionId}")
             
-            # Parse as Question model and use its method
+            # Add the ID to the data since the API doesn't return it
+            question_data['id'] = questionId
+            
+            # Parse as Question model and return it
             question = Question(**question_data)
-            return question.format_detailed()
+            return question
     
     except httpx.HTTPError as e:
         await ctx.error(f"HTTP error occurred: {e}")
-        return f"HTTP error: {e}"
+        raise
     except Exception as e:
         await ctx.error(f"Unexpected error occurred: {e}")
-        return f"Error: {e}"
+        raise
 
 
 @mcp.tool()

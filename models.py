@@ -43,6 +43,7 @@ class Forecast(BaseModel):
     
     class Config:
         populate_by_name = True
+        by_alias = True  # Use aliases when serializing
 
 
 class Comment(BaseModel):
@@ -60,12 +61,13 @@ class Comment(BaseModel):
     
     class Config:
         populate_by_name = True
+        by_alias = True  # Use aliases when serializing
 
 
 class Question(BaseModel):
     """Fatebook question model with optional fields for detailed responses"""
-    # Core fields (always present)
-    id: str
+    # Core fields (id is optional since getQuestion doesn't return it)
+    id: Optional[str] = None
     title: str
     type: Literal["BINARY", "MULTI", "NUMERIC"] = "BINARY"
     resolved: bool = False
@@ -93,8 +95,13 @@ class Question(BaseModel):
     share_with_lists: Optional[List[str]] = Field(None, alias="shareWithLists")
     share_with_email: Optional[List[str]] = Field(None, alias="shareWithEmail")
     
+    # Additional fields from getQuestion endpoint
+    your_latest_prediction: Optional[str] = Field(None, alias="yourLatestPrediction")
+    question_scores: Optional[List] = Field(None, alias="questionScores")
+    
     class Config:
         populate_by_name = True
+        by_alias = True  # Use aliases when serializing
     
     # Computed properties
     @property
@@ -115,17 +122,21 @@ class Question(BaseModel):
         tags_display = f" | Tags: {tags_text}" if tags_text else ""
         forecast_text = f" | {self.forecast_count} forecast{'s' if self.forecast_count != 1 else ''}"
         
-        return f"**{self.title}**\n{self.status_text} | ID: {self.id}{forecast_text}{tags_display}"
+        id_text = f" | ID: {self.id}" if self.id else ""
+        return f"**{self.title}**\n{self.status_text}{id_text}{forecast_text}{tags_display}"
     
     def format_detailed(self) -> str:
         """Format for detailed single question display"""
         lines = [
             f"**{self.title}**",
-            f"ID: {self.id}",
+        ]
+        if self.id:
+            lines.append(f"ID: {self.id}")
+        lines.extend([
             f"Type: {self.type}",
             f"Created: {self.created_at.isoformat()}",
             f"Resolve By: {self.resolve_by.isoformat()}",
-        ]
+        ])
         
         status = "✅ Resolved" if self.resolved else "⏳ Open"
         if self.resolved and self.resolved_at:

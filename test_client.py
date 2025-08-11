@@ -494,6 +494,113 @@ async def test_create_and_resolve_question(session):
         return False
 
 
+async def test_structured_get_question(session):
+    """Test that get_question returns a structured Question object."""
+    print("🔧 Testing structured get_question response...")
+    
+    # First create a question to test with
+    try:
+        from datetime import datetime, timedelta
+        resolve_date = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
+        
+        create_result = await session.call_tool("create_question", {
+            "title": "Test Structured Response Question",
+            "resolveBy": resolve_date,
+            "forecast": 0.75,
+            "apiKey": TEST_API_KEY,
+            "tags": ["test", "structured", "mcp"]
+        })
+        
+        if not create_result.content:
+            print("❌ No content in create_question response")
+            return False
+            
+        create_content = create_result.content[0].text
+        
+        # Extract question ID
+        lines = create_content.split('\n')
+        question_id = None
+        for line in lines:
+            if line.startswith("ID: "):
+                question_id = line.replace("ID: ", "").strip()
+                break
+        
+        if not question_id:
+            print("❌ Could not extract question ID")
+            return False
+            
+        print(f"✅ Created test question with ID: {question_id}")
+        
+        # Now test get_question with structured response
+        get_result = await session.call_tool("get_question", {
+            "questionId": question_id,
+            "apiKey": TEST_API_KEY
+        })
+        
+        if not get_result.content:
+            print("❌ No content in get_question response")
+            return False
+        
+        # Check if we got a structured response
+        content = get_result.content[0]
+        
+        # MCP always returns TextContent, but for structured responses it's JSON
+        if hasattr(content, 'text'):
+            try:
+                # Try to parse as JSON - if successful, it's structured
+                import json
+                question_data = json.loads(content.text)
+                print("✅ Received structured JSON response from get_question")
+                
+                # Verify key fields exist (using camelCase as returned by API)
+                required_fields = ['id', 'title', 'type', 'resolved', 'createdAt', 'resolveBy']
+                missing_fields = []
+                for field in required_fields:
+                    if field not in question_data:
+                        missing_fields.append(field)
+                
+                if missing_fields:
+                    print(f"❌ Missing required fields in structured response: {missing_fields}")
+                    return False
+                
+                print(f"📋 Question ID: {question_data.get('id')}")
+                print(f"📋 Title: {question_data.get('title')}")
+                print(f"📋 Type: {question_data.get('type')}")
+                print(f"📋 Resolved: {question_data.get('resolved')}")
+                print(f"📋 Created At: {question_data.get('createdAt')}")
+                print(f"📋 Resolve By: {question_data.get('resolveBy')}")
+                
+                # Check we have nested objects properly formatted
+                if 'forecasts' in question_data and question_data['forecasts']:
+                    print(f"📋 Forecasts: {len(question_data['forecasts'])} forecast(s)")
+                    
+                print("✅ Structured response contains all required fields!")
+                return True
+                
+            except json.JSONDecodeError:
+                # Not JSON, it's a formatted text response
+                print("⚠️ Received formatted text response instead of structured JSON")
+                print(f"Response: {content.text[:200]}...")
+                return False
+        else:
+            print(f"❌ Unexpected response format: {type(content)}")
+            return False
+        
+        # Clean up - delete the test question
+        await session.call_tool("delete_question", {
+            "questionId": question_id,
+            "apiKey": TEST_API_KEY
+        })
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error in structured get_question test: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
 async def test_fatebook_server():
     """Test the Fatebook MCP server by calling list_questions tool."""
     
@@ -569,13 +676,16 @@ async def test_fatebook_server():
             # Test create, edit, and resolve question flow
             edit_success = await test_create_edit_and_resolve_question(session)
             
+            # Test structured get_question response
+            structured_success = await test_structured_get_question(session)
+            
             # Test count forecasts
             count_success = await test_count_forecasts(session)
             
             # Test create and delete question flow
             delete_success = await test_create_and_delete_question(session)
             
-            return list_success and create_resolve_success and forecast_success and comment_success and edit_success and count_success and delete_success
+            return list_success and create_resolve_success and forecast_success and comment_success and edit_success and structured_success and count_success and delete_success
                 
         except Exception as e:
             print(f"❌ Error during testing: {e}")
