@@ -269,7 +269,21 @@ async def create_question(
             )
             response.raise_for_status()
 
-            return f"Question created successfully: {response.text}"
+            # Parse the URL from the response to extract title and ID
+            url = response.text.strip()
+            if url.startswith("https://fatebook.io/q/"):
+                # Extract the slug part after /q/
+                slug = url.replace("https://fatebook.io/q/", "")
+                
+                # Split on the last occurrence of -- to separate title and ID
+                if "--" in slug:
+                    url_title, question_id = slug.rsplit("--", 1)
+                    
+                    return f"**Question Created Successfully!**\nTitle: {title}\nID: {question_id}\nURL: {url}"
+                else:
+                    return f"**Question Created Successfully!**\nTitle: {title}\nURL: {url}\n(Could not parse question ID from URL format)"
+            else:
+                return f"**Question Created Successfully!**\nTitle: {title}\nResponse: {url}"
 
     except httpx.HTTPError as e:
         return f"HTTP error: {e}"

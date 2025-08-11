@@ -105,28 +105,21 @@ async def test_create_edit_and_resolve_question(session):
         create_content = create_result.content[0].text
         print(f"📝 Create response: {create_content}")
         
-        if "successfully" not in create_content:
+        if "Question Created Successfully" not in create_content:
             print("❌ Question creation failed")
             return False
             
-        # Extract question ID from response URL
-        # Response format: "Question created successfully: https://fatebook.io/q/title--QUESTION_ID"
-        if "https://fatebook.io/q/" not in create_content:
-            print("❌ Could not find Fatebook URL in create response")
-            return False
-            
-        # Extract question ID from the URL
-        url_start = create_content.find("https://fatebook.io/q/")
-        url = create_content[url_start:].strip()
-        # Question ID is after the last double dash
-        if "--" not in url:
-            print("❌ Could not parse question ID from URL format")
-            return False
-            
-        question_id = url.split("--")[-1]
+        # Extract question ID from the formatted response
+        # Response format: "**Question Created Successfully!**\nTitle: ...\nID: QUESTION_ID\nURL: ..."
+        lines = create_content.split('\n')
+        question_id = None
+        for line in lines:
+            if line.startswith("ID: "):
+                question_id = line.replace("ID: ", "").strip()
+                break
         
         if not question_id:
-            print("❌ Could not extract question ID from URL")
+            print("❌ Could not extract question ID from formatted response")
             return False
             
         print(f"✅ Created question with ID: {question_id}")
@@ -205,28 +198,21 @@ async def test_create_and_delete_question(session):
         create_content = create_result.content[0].text
         print(f"📝 Create response: {create_content}")
         
-        if "successfully" not in create_content:
+        if "Question Created Successfully" not in create_content:
             print("❌ Question creation failed")
             return False
             
-        # Extract question ID from response URL
-        # Response format: "Question created successfully: https://fatebook.io/q/title--QUESTION_ID"
-        if "https://fatebook.io/q/" not in create_content:
-            print("❌ Could not find Fatebook URL in create response")
-            return False
-            
-        # Extract question ID from the URL
-        url_start = create_content.find("https://fatebook.io/q/")
-        url = create_content[url_start:].strip()
-        # Question ID is after the last double dash
-        if "--" not in url:
-            print("❌ Could not parse question ID from URL format")
-            return False
-            
-        question_id = url.split("--")[-1]
+        # Extract question ID from the formatted response
+        # Response format: "**Question Created Successfully!**\nTitle: ...\nID: QUESTION_ID\nURL: ..."
+        lines = create_content.split('\n')
+        question_id = None
+        for line in lines:
+            if line.startswith("ID: "):
+                question_id = line.replace("ID: ", "").strip()
+                break
         
         if not question_id:
-            print("❌ Could not extract question ID from URL")
+            print("❌ Could not extract question ID from formatted response")
             return False
             
         print(f"✅ Created question with ID: {question_id}")
@@ -280,28 +266,21 @@ async def test_create_and_add_comment_question(session):
         create_content = create_result.content[0].text
         print(f"📝 Create response: {create_content}")
         
-        if "successfully" not in create_content:
+        if "Question Created Successfully" not in create_content:
             print("❌ Question creation failed")
             return False
             
-        # Extract question ID from response URL
-        # Response format: "Question created successfully: https://fatebook.io/q/title--QUESTION_ID"
-        if "https://fatebook.io/q/" not in create_content:
-            print("❌ Could not find Fatebook URL in create response")
-            return False
-            
-        # Extract question ID from the URL
-        url_start = create_content.find("https://fatebook.io/q/")
-        url = create_content[url_start:].strip()
-        # Question ID is after the last double dash
-        if "--" not in url:
-            print("❌ Could not parse question ID from URL format")
-            return False
-            
-        question_id = url.split("--")[-1]
+        # Extract question ID from the formatted response
+        # Response format: "**Question Created Successfully!**\nTitle: ...\nID: QUESTION_ID\nURL: ..."
+        lines = create_content.split('\n')
+        question_id = None
+        for line in lines:
+            if line.startswith("ID: "):
+                question_id = line.replace("ID: ", "").strip()
+                break
         
         if not question_id:
-            print("❌ Could not extract question ID from URL")
+            print("❌ Could not extract question ID from formatted response")
             return False
             
         print(f"✅ Created question with ID: {question_id}")
@@ -377,28 +356,21 @@ async def test_create_and_add_forecast_question(session):
         create_content = create_result.content[0].text
         print(f"📝 Create response: {create_content}")
         
-        if "successfully" not in create_content:
+        if "Question Created Successfully" not in create_content:
             print("❌ Question creation failed")
             return False
             
-        # Extract question ID from response URL
-        # Response format: "Question created successfully: https://fatebook.io/q/title--QUESTION_ID"
-        if "https://fatebook.io/q/" not in create_content:
-            print("❌ Could not find Fatebook URL in create response")
-            return False
-            
-        # Extract question ID from the URL
-        url_start = create_content.find("https://fatebook.io/q/")
-        url = create_content[url_start:].strip()
-        # Question ID is after the last double dash
-        if "--" not in url:
-            print("❌ Could not parse question ID from URL format")
-            return False
-            
-        question_id = url.split("--")[-1]
+        # Extract question ID from the formatted response
+        # Response format: "**Question Created Successfully!**\nTitle: ...\nID: QUESTION_ID\nURL: ..."
+        lines = create_content.split('\n')
+        question_id = None
+        for line in lines:
+            if line.startswith("ID: "):
+                question_id = line.replace("ID: ", "").strip()
+                break
         
         if not question_id:
-            print("❌ Could not extract question ID from URL")
+            print("❌ Could not extract question ID from formatted response")
             return False
             
         print(f"✅ Created question with ID: {question_id}")
@@ -474,28 +446,21 @@ async def test_create_and_resolve_question(session):
         create_content = create_result.content[0].text
         print(f"📝 Create response: {create_content}")
         
-        if "successfully" not in create_content:
+        if "Question Created Successfully" not in create_content:
             print("❌ Question creation failed")
             return False
             
-        # Extract question ID from response URL
-        # Response format: "Question created successfully: https://fatebook.io/q/title--QUESTION_ID"
-        if "https://fatebook.io/q/" not in create_content:
-            print("❌ Could not find Fatebook URL in create response")
-            return False
-            
-        # Extract question ID from the URL
-        url_start = create_content.find("https://fatebook.io/q/")
-        url = create_content[url_start:].strip()
-        # Question ID is after the last double dash
-        if "--" not in url:
-            print("❌ Could not parse question ID from URL format")
-            return False
-            
-        question_id = url.split("--")[-1]
+        # Extract question ID from the formatted response
+        # Response format: "**Question Created Successfully!**\nTitle: ...\nID: QUESTION_ID\nURL: ..."
+        lines = create_content.split('\n')
+        question_id = None
+        for line in lines:
+            if line.startswith("ID: "):
+                question_id = line.replace("ID: ", "").strip()
+                break
         
         if not question_id:
-            print("❌ Could not extract question ID from URL")
+            print("❌ Could not extract question ID from formatted response")
             return False
             
         print(f"✅ Created question with ID: {question_id}")
