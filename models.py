@@ -69,7 +69,7 @@ class Question(BaseModel):
     # Core fields (id is optional since getQuestion doesn't return it)
     id: Optional[str] = None
     title: str
-    type: Literal["BINARY", "MULTI", "NUMERIC"] = "BINARY"
+    type: Literal["BINARY", "NUMERIC", "MULTIPLE_CHOICE"] = "BINARY"
     resolved: bool = False
     
     # Timestamps
@@ -175,3 +175,12 @@ class QuestionsResponse(BaseModel):
     """Response from getQuestions endpoint"""
     items: List[Question]
     cursor: Optional[str] = None
+
+
+class QuestionsList(BaseModel):
+    """List of questions for MCP responses - matches expected MCP schema"""
+    result: List[Question]
+    
+    class Config:
+        populate_by_name = True
+        by_alias = True

@@ -643,23 +643,44 @@ async def test_fatebook_server():
                 "apiKey": TEST_API_KEY
             })
             
-            # Check the result
+            # Check the result - now expecting structured JSON response
             list_success = False
             if result.content:
                 content = result.content[0].text
-                # Now we expect formatted question responses instead of JSON
-                if "No questions found." in content:
-                    print("✅ No questions found (formatted response working)")
-                    list_success = True
-                elif "**" in content and ("✅ RESOLVED" in content or "⏳ OPEN" in content):
-                    print("✅ Successfully retrieved formatted questions data")
-                    # Count the number of questions by counting the **title** patterns
-                    question_count = content.count("**")
-                    print(f"✅ Found {question_count} formatted questions")
-                    list_success = True
-                else:
-                    print(f"❌ Unexpected response: {content}")
-                    return False
+                try:
+                    # Parse as JSON - expecting QuestionsList format: {"result": [...]}
+                    response_data = json.loads(content)
+                    
+                    if isinstance(response_data, dict) and "result" in response_data:
+                        questions_data = response_data["result"]
+                        print("✅ Successfully retrieved structured questions list")
+                        print(f"✅ Found {len(questions_data)} questions")
+                        
+                        # Verify structure of first question if any exist
+                        if questions_data:
+                            first_q = questions_data[0]
+                            required_fields = ['id', 'title', 'type', 'resolved', 'createdAt', 'resolveBy']
+                            missing_fields = [field for field in required_fields if field not in first_q]
+                            
+                            if missing_fields:
+                                print(f"❌ Missing required fields in first question: {missing_fields}")
+                                return False
+                            
+                            print(f"📋 First question: '{first_q.get('title')}' - {first_q.get('type')} - {'✅ RESOLVED' if first_q.get('resolved') else '⏳ OPEN'}")
+                        
+                        list_success = True
+                    else:
+                        print(f"❌ Expected dict with 'result' field, got: {type(response_data)} with keys: {list(response_data.keys()) if isinstance(response_data, dict) else 'N/A'}")
+                        return False
+                        
+                except json.JSONDecodeError:
+                    # Fallback: maybe it's still a text response or empty
+                    if "No questions found." in content or content.strip() == "[]":
+                        print("✅ No questions found (empty list)")
+                        list_success = True
+                    else:
+                        print(f"❌ Could not parse JSON response: {content}")
+                        return False
             else:
                 print("❌ Error: No content in response")
                 return False

@@ -3,7 +3,7 @@ import httpx
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp import Context
 from dotenv import load_dotenv
-from models import Question, QuestionsResponse
+from models import Question, QuestionsResponse, QuestionsList
 
 load_dotenv()
 
@@ -19,17 +19,22 @@ async def list_questions(
     searchString: str = "",
     limit: int = 100,
     cursor: str = "",
-) -> str:
-    """List Fatebook questions with optional filtering"""
+    detailed: bool = False,
+) -> QuestionsList:
+    """List Fatebook questions with optional filtering
+    
+    Returns a list of Question objects. By default returns core fields only.
+    Set detailed=True to include all available fields (forecasts, comments, etc.).
+    """
 
     await ctx.info(
-        f"list_questions called with resolved={resolved}, unresolved={unresolved}, searchString='{searchString}', limit={limit}"
+        f"list_questions called with resolved={resolved}, unresolved={unresolved}, searchString='{searchString}', limit={limit}, detailed={detailed}"
     )
 
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
         await ctx.error("API key is required but not provided")
-        return "Error: API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
+        raise ValueError("API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)")
 
     params = {"apiKey": api_key}
 
@@ -63,18 +68,15 @@ async def list_questions(
                 f"Successfully retrieved {len(questions)} questions"
             )
             
-            if not questions:
-                return "No questions found."
-            
-            formatted_questions = [question.format_short() for question in questions]
-            return "\n\n".join(formatted_questions)
+            # Return as QuestionsList with 'result' field to match MCP schema expectations
+            return QuestionsList(result=questions)
 
     except httpx.HTTPError as e:
         await ctx.error(f"HTTP error occurred: {e}")
-        return f"HTTP error: {e}"
+        raise
     except Exception as e:
         await ctx.error(f"Unexpected error occurred: {e}")
-        return f"Error: {e}"
+        raise
 
 
 @mcp.tool()
