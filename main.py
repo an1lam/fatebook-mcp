@@ -1,96 +1,102 @@
-import logging
 import os
 import httpx
-import fastmcp
+from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context
 from dotenv import load_dotenv
 
 load_dotenv()
-logging.basicConfig(level=logging.INFO)
 
-mcp = fastmcp.FastMCP("Fatebook MCP Server")
+mcp = FastMCP("Fatebook MCP Server")
 
 
 @mcp.tool()
 async def list_questions(
+    ctx: Context,
     apiKey: str = "",
-    resolved: bool | None = None,
-    unresolved: bool | None = None,
+    resolved: bool = False,
+    unresolved: bool = False,
     searchString: str = "",
-    limit: int | None = None,
-    cursor: str = ""
+    limit: int = 100,
+    cursor: str = "",
 ) -> str:
     """List Fatebook questions with optional filtering"""
-    
+
+    await ctx.info(
+        f"list_questions called with resolved={resolved}, unresolved={unresolved}, searchString='{searchString}', limit={limit}"
+    )
+
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
+        await ctx.error("API key is required but not provided")
         return "Error: API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
-    
+
     params = {"apiKey": api_key}
-    
+
     # Add optional parameters
-    if resolved is not None:
+    if resolved:
         params["resolved"] = resolved
-    if unresolved is not None:
+    if unresolved:
         params["unresolved"] = unresolved
     if searchString:
         params["searchString"] = searchString
-    if limit is not None:
-        params["limit"] = limit
+    params["limit"] = limit
     if cursor:
         params["cursor"] = cursor
-    
+
+    await ctx.debug(f"Making API request with params: {params}")
+
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                "https://fatebook.io/api/v0/getQuestions",
-                params=params
+                "https://fatebook.io/api/v0/getQuestions", params=params
             )
             response.raise_for_status()
-            
+
             data = response.json()
+            await ctx.info(
+                f"Successfully retrieved {len(data.get('questions', []))} questions"
+            )
             return f"Questions data: {response.text}"
-            
+
     except httpx.HTTPError as e:
+        await ctx.error(f"HTTP error occurred: {e}")
         return f"HTTP error: {e}"
     except Exception as e:
+        await ctx.error(f"Unexpected error occurred: {e}")
         return f"Error: {e}"
 
 
 @mcp.tool()
 async def resolve_question(
-    questionId: str,
-    resolution: str,
-    questionType: str,
-    apiKey: str = ""
+    questionId: str, resolution: str, questionType: str, apiKey: str = ""
 ) -> str:
     """Resolve a Fatebook question with YES/NO/AMBIGUOUS resolution"""
-    
+
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
         return "Error: API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
-    
+
     # Validate resolution parameter
     valid_resolutions = ["YES", "NO", "AMBIGUOUS"]
     if resolution not in valid_resolutions:
         return f"Error: resolution must be one of {valid_resolutions}"
-    
+
     data = {
         "questionId": questionId,
         "resolution": resolution,
         "questionType": questionType,
-        "apiKey": api_key
+        "apiKey": api_key,
     }
-    
+
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                "https://fatebook.io/api/v0/resolveQuestion",
-                json=data
+                "https://fatebook.io/api/v0/resolveQuestion", json=data
             )
             response.raise_for_status()
-            
+
             return f"Question resolved successfully: {response.text}"
-            
+
     except httpx.HTTPError as e:
         return f"HTTP error: {e}"
     except Exception as e:
@@ -103,51 +109,50 @@ async def create_question(
     resolveBy: str,
     forecast: float,
     apiKey: str = "",
-    tags: list[str] | None = None,
+    tags: list[str] = [],
     sharePublicly: bool = False,
-    shareWithLists: list[str] | None = None,
-    shareWithEmail: list[str] | None = None,
-    hideForecastsUntil: str | None = None
+    shareWithLists: list[str] = [],
+    shareWithEmail: list[str] = [],
+    hideForecastsUntil: str = "",
 ) -> str:
     """Create a new Fatebook question"""
-    
+
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
         return "Error: API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
-    
+
     # Validate forecast parameter
     if not 0 <= forecast <= 1:
         return "Error: forecast must be between 0 and 1"
-    
+
     params = {
         "apiKey": api_key,
         "title": title,
         "resolveBy": resolveBy,
-        "forecast": forecast
+        "forecast": forecast,
     }
-    
+
     # Add optional parameters
-    if tags is not None:
+    if tags:
         params["tags"] = ",".join(tags)
     if sharePublicly:
         params["sharePublicly"] = sharePublicly
-    if shareWithLists is not None:
+    if shareWithLists:
         params["shareWithLists"] = ",".join(shareWithLists)
-    if shareWithEmail is not None:
+    if shareWithEmail:
         params["shareWithEmail"] = ",".join(shareWithEmail)
-    if hideForecastsUntil is not None:
+    if hideForecastsUntil:
         params["hideForecastsUntil"] = hideForecastsUntil
-    
+
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                "https://fatebook.io/api/v0/createQuestion",
-                params=params
+                "https://fatebook.io/api/v0/createQuestion", params=params
             )
             response.raise_for_status()
-            
+
             return f"Question created successfully: {response.text}"
-            
+
     except httpx.HTTPError as e:
         return f"HTTP error: {e}"
     except Exception as e:
@@ -156,41 +161,33 @@ async def create_question(
 
 @mcp.tool()
 async def add_forecast(
-    questionId: str,
-    forecast: float,
-    apiKey: str = "",
-    optionId: str | None = None
+    questionId: str, forecast: float, apiKey: str = "", optionId: str = ""
 ) -> str:
     """Add a forecast to a Fatebook question"""
-    
+
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
         return "Error: API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
-    
+
     # Validate forecast parameter
     if not 0 <= forecast <= 1:
         return "Error: forecast must be between 0 and 1"
-    
-    data = {
-        "questionId": questionId,
-        "forecast": forecast,
-        "apiKey": api_key
-    }
-    
+
+    data = {"questionId": questionId, "forecast": forecast, "apiKey": api_key}
+
     # Add optional parameter for multi-choice questions
-    if optionId is not None:
+    if optionId:
         data["optionId"] = optionId
-    
+
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                "https://fatebook.io/api/v0/addForecast",
-                json=data
+                "https://fatebook.io/api/v0/addForecast", json=data
             )
             response.raise_for_status()
-            
+
             return f"Forecast added successfully: {response.text}"
-            
+
     except httpx.HTTPError as e:
         return f"HTTP error: {e}"
     except Exception as e:
@@ -198,33 +195,24 @@ async def add_forecast(
 
 
 @mcp.tool()
-async def add_comment(
-    questionId: str,
-    comment: str,
-    apiKey: str = ""
-) -> str:
+async def add_comment(questionId: str, comment: str, apiKey: str = "") -> str:
     """Add a comment to a Fatebook question"""
-    
+
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
         return "Error: API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
-    
-    data = {
-        "questionId": questionId,
-        "comment": comment,
-        "apiKey": api_key
-    }
-    
+
+    data = {"questionId": questionId, "comment": comment, "apiKey": api_key}
+
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                "https://fatebook.io/api/v0/addComment",
-                json=data
+                "https://fatebook.io/api/v0/addComment", json=data
             )
             response.raise_for_status()
-            
+
             return f"Comment added successfully: {response.text}"
-            
+
     except httpx.HTTPError as e:
         return f"HTTP error: {e}"
     except Exception as e:
@@ -232,31 +220,24 @@ async def add_comment(
 
 
 @mcp.tool()
-async def delete_question(
-    questionId: str,
-    apiKey: str = ""
-) -> str:
+async def delete_question(questionId: str, apiKey: str = "") -> str:
     """Delete a Fatebook question"""
-    
+
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
         return "Error: API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
-    
-    params = {
-        "questionId": questionId,
-        "apiKey": api_key
-    }
-    
+
+    params = {"questionId": questionId, "apiKey": api_key}
+
     try:
         async with httpx.AsyncClient() as client:
             response = await client.delete(
-                "https://fatebook.io/api/v0/deleteQuestion",
-                params=params
+                "https://fatebook.io/api/v0/deleteQuestion", params=params
             )
             response.raise_for_status()
-            
+
             return f"Question deleted successfully: {response.text}"
-            
+
     except httpx.HTTPError as e:
         return f"HTTP error: {e}"
     except Exception as e:
@@ -267,39 +248,35 @@ async def delete_question(
 async def edit_question(
     questionId: str,
     apiKey: str = "",
-    title: str | None = None,
-    resolveBy: str | None = None,
-    notes: str | None = None
+    title: str = "",
+    resolveBy: str = "",
+    notes: str = "",
 ) -> str:
     """Edit a Fatebook question"""
-    
+
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
         return "Error: API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
-    
-    data = {
-        "questionId": questionId,
-        "apiKey": api_key
-    }
-    
+
+    data = {"questionId": questionId, "apiKey": api_key}
+
     # Add optional parameters only if provided
-    if title is not None:
+    if title:
         data["title"] = title
-    if resolveBy is not None:
+    if resolveBy:
         data["resolveBy"] = resolveBy
-    if notes is not None:
+    if notes:
         data["notes"] = notes
-    
+
     try:
         async with httpx.AsyncClient() as client:
             response = await client.patch(
-                "https://fatebook.io/api/v0/editQuestion",
-                json=data
+                "https://fatebook.io/api/v0/editQuestion", json=data
             )
             response.raise_for_status()
-            
+
             return f"Question edited successfully: {response.text}"
-            
+
     except httpx.HTTPError as e:
         return f"HTTP error: {e}"
     except Exception as e:
@@ -307,25 +284,20 @@ async def edit_question(
 
 
 @mcp.tool()
-async def count_forecasts(
-    userId: str
-) -> str:
+async def count_forecasts(userId: str) -> str:
     """Count forecasts for a specific user"""
-    
-    params = {
-        "userId": userId
-    }
-    
+
+    params = {"userId": userId}
+
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                "https://fatebook.io/api/v0/countForecasts",
-                params=params
+                "https://fatebook.io/api/v0/countForecasts", params=params
             )
             response.raise_for_status()
-            
+
             return f"Forecast count data: {response.text}"
-            
+
     except httpx.HTTPError as e:
         return f"HTTP error: {e}"
     except Exception as e:
@@ -333,5 +305,4 @@ async def count_forecasts(
 
 
 if __name__ == "__main__":
-    logging.info("Starting Fatebook MCP server...")
     mcp.run()
