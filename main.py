@@ -1,88 +1,13 @@
 import os
 import httpx
-from enum import Enum
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp import Context
 from dotenv import load_dotenv
+from models import Question, QuestionsResponse
 
 load_dotenv()
 
 mcp = FastMCP("Fatebook MCP Server")
-
-
-class QuestionFormat(Enum):
-    SHORT = "short"
-    DETAILED = "detailed"
-
-
-def format_question(question: dict, format: QuestionFormat) -> str:
-    """Format a Fatebook question for display"""
-    
-    if format == QuestionFormat.SHORT:
-        # Short format for lists
-        status = "✅ RESOLVED" if question.get("resolved") else "⏳ OPEN"
-        resolution = f" ({question.get('resolution', 'N/A')})" if question.get("resolved") else ""
-        forecast_count = len(question.get("forecasts", []))
-        forecast_text = f" | {forecast_count} forecast{'s' if forecast_count != 1 else ''}"
-        tags = ", ".join([tag["name"] for tag in question.get("tags", [])])
-        tags_text = f" | Tags: {tags}" if tags else ""
-        
-        return f"**{question.get('title', 'N/A')}**\n{status}{resolution} | ID: {question.get('id', 'N/A')}{forecast_text}{tags_text}"
-    
-    elif format == QuestionFormat.DETAILED:
-        # Detailed format for single questions
-        lines = []
-        lines.append(f"**{question.get('title', 'N/A')}**")
-        lines.append(f"ID: {question.get('id', 'N/A')}")
-        lines.append(f"Type: {question.get('type', 'N/A')}")
-        lines.append(f"Created: {question.get('createdAt', 'N/A')}")
-        lines.append(f"Resolve By: {question.get('resolveBy', 'N/A')}")
-        
-        status = "✅ Resolved" if question.get("resolved") else "⏳ Open"
-        if question.get("resolved"):
-            status += f" as {question.get('resolution', 'N/A')} on {question.get('resolvedAt', 'N/A')}"
-        lines.append(f"Status: {status}")
-        
-        if question.get("notes"):
-            lines.append(f"Notes: {question.get('notes')}")
-        
-        # Forecasts
-        forecasts = question.get("forecasts", [])
-        if forecasts:
-            lines.append(f"Forecasts ({len(forecasts)}):")
-            for forecast in forecasts:
-                forecast_val = float(forecast.get("forecast", 0))
-                user_name = forecast.get("user", {}).get("name", "Unknown")
-                lines.append(f"  • {user_name}: {forecast_val:.0%}")
-        
-        # Tags
-        tags = question.get("tags", [])
-        if tags:
-            tag_names = [tag["name"] for tag in tags]
-            lines.append(f"Tags: {', '.join(tag_names)}")
-        
-        # Comments
-        comments = question.get("comments", [])
-        if comments:
-            lines.append(f"Comments ({len(comments)}):")
-            for comment in comments:
-                user_name = comment.get("user", {}).get("name", "Unknown")
-                comment_text = comment.get("comment", "")
-                lines.append(f"  • {user_name}: {comment_text}")
-        
-        # Visibility
-        visibility = []
-        if question.get("sharedPublicly"):
-            visibility.append("Public")
-        if question.get("unlisted"):
-            visibility.append("Unlisted")
-        if visibility:
-            lines.append(f"Visibility: {', '.join(visibility)}")
-        
-        return "\n".join(lines)
-    
-    else:
-        return f"Unknown format: {format}"
 
 
 @mcp.tool()
@@ -129,7 +54,11 @@ async def list_questions(
             response.raise_for_status()
 
             data = response.json()
-            questions = data.get('items', [])  # Based on the example data structure
+            
+            # Parse response using Pydantic model
+            questions_response = QuestionsResponse(**data)
+            questions = questions_response.items
+            
             await ctx.info(
                 f"Successfully retrieved {len(questions)} questions"
             )
@@ -137,10 +66,7 @@ async def list_questions(
             if not questions:
                 return "No questions found."
             
-            formatted_questions = []
-            for question in questions:
-                formatted_questions.append(format_question(question, QuestionFormat.SHORT))
-            
+            formatted_questions = [question.format_short() for question in questions]
             return "\n\n".join(formatted_questions)
 
     except httpx.HTTPError as e:
@@ -171,10 +97,12 @@ async def get_question(ctx: Context, questionId: str, apiKey: str = "") -> str:
             )
             response.raise_for_status()
             
-            question = response.json()
+            question_data = response.json()
             await ctx.info(f"Successfully retrieved question {questionId}")
             
-            return format_question(question, QuestionFormat.DETAILED)
+            # Parse as Question model and use its method
+            question = Question(**question_data)
+            return question.format_detailed()
     
     except httpx.HTTPError as e:
         await ctx.error(f"HTTP error occurred: {e}")

@@ -23,10 +23,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Test API key for integration testing
-TEST_API_KEY = "s9dsge0vjrbndoqr9xyq"
+TEST_API_KEY = os.getenv("FATEBOOK_API_KEY")
+if TEST_API_KEY is None:
+    raise ValueError("Need FATEBOOK_API_KEY env variable to be set either in .env or the local environment")
 
 # Test user ID for count forecasts testing (from the test API key user)
-TEST_USER_ID = "cldxj6jya0003mj08hv1se8j2"
+TEST_USER_ID = "cme6dxa8g0001i7g74q4exorm"
 
 
 async def test_count_forecasts(session):
