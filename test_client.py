@@ -53,29 +53,13 @@ async def test_count_forecasts(session):
         count_content = count_result.content[0].text
         print(f"📊 Count response: {count_content}")
         
-        if "Forecast count data:" in count_content:
-            # Try to parse the JSON to validate structure
-            try:
-                json_start = count_content.find("{")
-                if json_start != -1:
-                    json_data = count_content[json_start:]
-                    parsed = json.loads(json_data)
-                    if "numForecasts" in parsed:
-                        print(f"✅ Found forecast count: {parsed['numForecasts']} for user {parsed.get('userName', 'unknown')}")
-                        return True
-                    else:
-                        print("❌ Error: No 'numForecasts' field in response")
-                        return False
-            except json.JSONDecodeError as e:
-                print(f"❌ Error parsing JSON: {e}")
-                return False
-        elif "HTTP error:" in count_content:
-            print(f"⚠️  API error in count_forecasts (possibly endpoint issue): {count_content}")
-            # Since this may be an API endpoint issue, don't fail the entire test
-            print("⚠️  Continuing tests despite count_forecasts API error")
+        # Now expecting just an integer response
+        try:
+            count_value = int(count_content)
+            print(f"✅ Found forecast count: {count_value}")
             return True
-        else:
-            print(f"❌ Unexpected response format: {count_content}")
+        except ValueError:
+            print(f"❌ Expected integer response, got: {count_content}")
             return False
             
     except Exception as e:
@@ -107,24 +91,20 @@ async def test_create_edit_and_resolve_question(session):
         create_content = create_result.content[0].text
         print(f"📝 Create response: {create_content}")
         
-        if "Question Created Successfully" not in create_content:
-            print("❌ Question creation failed")
-            return False
+        # Now expecting a JSON response with id and title
+        try:
+            create_data = json.loads(create_content)
+            question_id = create_data.get('id')
+            title = create_data.get('title')
             
-        # Extract question ID from the formatted response
-        # Response format: "**Question Created Successfully!**\nTitle: ...\nID: QUESTION_ID\nURL: ..."
-        lines = create_content.split('\n')
-        question_id = None
-        for line in lines:
-            if line.startswith("ID: "):
-                question_id = line.replace("ID: ", "").strip()
-                break
-        
-        if not question_id:
-            print("❌ Could not extract question ID from formatted response")
-            return False
+            if not question_id:
+                print("❌ No question ID in response")
+                return False
             
-        print(f"✅ Created question with ID: {question_id}")
+            print(f"✅ Created question with ID: {question_id} and title: {title}")
+        except json.JSONDecodeError:
+            print(f"❌ Expected JSON response, got: {create_content}")
+            return False
         
         # Step 2: Edit the question
         new_resolve_date = (datetime.now() + timedelta(days=14)).strftime("%Y-%m-%d")
@@ -143,11 +123,12 @@ async def test_create_edit_and_resolve_question(session):
         edit_content = edit_result.content[0].text
         print(f"✏️ Edit response: {edit_content}")
         
-        if "successfully" not in edit_content:
+        # Now expecting a boolean response
+        if edit_content.lower() == "true":
+            print("✅ Successfully edited question!")
+        else:
             print("❌ Question editing failed")
             return False
-            
-        print("✅ Successfully edited question!")
         
         # Step 3: Resolve the question
         resolve_result = await session.call_tool("resolve_question", {
@@ -164,7 +145,8 @@ async def test_create_edit_and_resolve_question(session):
         resolve_content = resolve_result.content[0].text
         print(f"✅ Resolve response: {resolve_content}")
         
-        if "successfully" in resolve_content:
+        # Now expecting a boolean response
+        if resolve_content.lower() == "true":
             print("✅ Successfully created, edited, and resolved test question!")
             return True
         else:
@@ -200,24 +182,20 @@ async def test_create_and_delete_question(session):
         create_content = create_result.content[0].text
         print(f"📝 Create response: {create_content}")
         
-        if "Question Created Successfully" not in create_content:
-            print("❌ Question creation failed")
-            return False
+        # Now expecting a JSON response with id and title
+        try:
+            create_data = json.loads(create_content)
+            question_id = create_data.get('id')
+            title = create_data.get('title')
             
-        # Extract question ID from the formatted response
-        # Response format: "**Question Created Successfully!**\nTitle: ...\nID: QUESTION_ID\nURL: ..."
-        lines = create_content.split('\n')
-        question_id = None
-        for line in lines:
-            if line.startswith("ID: "):
-                question_id = line.replace("ID: ", "").strip()
-                break
-        
-        if not question_id:
-            print("❌ Could not extract question ID from formatted response")
-            return False
+            if not question_id:
+                print("❌ No question ID in response")
+                return False
             
-        print(f"✅ Created question with ID: {question_id}")
+            print(f"✅ Created question with ID: {question_id} and title: {title}")
+        except json.JSONDecodeError:
+            print(f"❌ Expected JSON response, got: {create_content}")
+            return False
         
         # Step 2: Delete the question
         delete_result = await session.call_tool("delete_question", {
@@ -232,7 +210,8 @@ async def test_create_and_delete_question(session):
         delete_content = delete_result.content[0].text
         print(f"🗑️ Delete response: {delete_content}")
         
-        if "successfully" in delete_content:
+        # Now expecting a boolean response
+        if delete_content.lower() == "true":
             print("✅ Successfully created and deleted test question!")
             return True
         else:
@@ -268,24 +247,20 @@ async def test_create_and_add_comment_question(session):
         create_content = create_result.content[0].text
         print(f"📝 Create response: {create_content}")
         
-        if "Question Created Successfully" not in create_content:
-            print("❌ Question creation failed")
-            return False
+        # Now expecting a JSON response with id and title
+        try:
+            create_data = json.loads(create_content)
+            question_id = create_data.get('id')
+            title = create_data.get('title')
             
-        # Extract question ID from the formatted response
-        # Response format: "**Question Created Successfully!**\nTitle: ...\nID: QUESTION_ID\nURL: ..."
-        lines = create_content.split('\n')
-        question_id = None
-        for line in lines:
-            if line.startswith("ID: "):
-                question_id = line.replace("ID: ", "").strip()
-                break
-        
-        if not question_id:
-            print("❌ Could not extract question ID from formatted response")
-            return False
+            if not question_id:
+                print("❌ No question ID in response")
+                return False
             
-        print(f"✅ Created question with ID: {question_id}")
+            print(f"✅ Created question with ID: {question_id} and title: {title}")
+        except json.JSONDecodeError:
+            print(f"❌ Expected JSON response, got: {create_content}")
+            return False
         
         # Step 2: Add a comment to the question
         comment_result = await session.call_tool("add_comment", {
@@ -301,11 +276,12 @@ async def test_create_and_add_comment_question(session):
         comment_content = comment_result.content[0].text
         print(f"💬 Comment response: {comment_content}")
         
-        if "successfully" not in comment_content:
+        # Now expecting a boolean response
+        if comment_content.lower() == "true":
+            print("✅ Successfully added comment to question!")
+        else:
             print("❌ Adding comment failed")
             return False
-            
-        print("✅ Successfully added comment to question!")
         
         # Step 3: Resolve the question
         resolve_result = await session.call_tool("resolve_question", {
@@ -322,7 +298,7 @@ async def test_create_and_add_comment_question(session):
         resolve_content = resolve_result.content[0].text
         print(f"✅ Resolve response: {resolve_content}")
         
-        if "successfully" in resolve_content:
+        if resolve_content.lower() == "true":
             print("✅ Successfully created, commented, and resolved test question!")
             return True
         else:
@@ -358,24 +334,20 @@ async def test_create_and_add_forecast_question(session):
         create_content = create_result.content[0].text
         print(f"📝 Create response: {create_content}")
         
-        if "Question Created Successfully" not in create_content:
-            print("❌ Question creation failed")
-            return False
+        # Now expecting a JSON response with id and title
+        try:
+            create_data = json.loads(create_content)
+            question_id = create_data.get('id')
+            title = create_data.get('title')
             
-        # Extract question ID from the formatted response
-        # Response format: "**Question Created Successfully!**\nTitle: ...\nID: QUESTION_ID\nURL: ..."
-        lines = create_content.split('\n')
-        question_id = None
-        for line in lines:
-            if line.startswith("ID: "):
-                question_id = line.replace("ID: ", "").strip()
-                break
-        
-        if not question_id:
-            print("❌ Could not extract question ID from formatted response")
-            return False
+            if not question_id:
+                print("❌ No question ID in response")
+                return False
             
-        print(f"✅ Created question with ID: {question_id}")
+            print(f"✅ Created question with ID: {question_id} and title: {title}")
+        except json.JSONDecodeError:
+            print(f"❌ Expected JSON response, got: {create_content}")
+            return False
         
         # Step 2: Add a forecast to the question
         forecast_result = await session.call_tool("add_forecast", {
@@ -391,11 +363,12 @@ async def test_create_and_add_forecast_question(session):
         forecast_content = forecast_result.content[0].text
         print(f"📈 Forecast response: {forecast_content}")
         
-        if "successfully" not in forecast_content:
+        # Now expecting a boolean response
+        if forecast_content.lower() == "true":
+            print("✅ Successfully added forecast to question!")
+        else:
             print("❌ Adding forecast failed")
             return False
-            
-        print("✅ Successfully added forecast to question!")
         
         # Step 3: Resolve the question
         resolve_result = await session.call_tool("resolve_question", {
@@ -412,7 +385,7 @@ async def test_create_and_add_forecast_question(session):
         resolve_content = resolve_result.content[0].text
         print(f"✅ Resolve response: {resolve_content}")
         
-        if "successfully" in resolve_content:
+        if resolve_content.lower() == "true":
             print("✅ Successfully created, forecasted, and resolved test question!")
             return True
         else:
@@ -448,24 +421,20 @@ async def test_create_and_resolve_question(session):
         create_content = create_result.content[0].text
         print(f"📝 Create response: {create_content}")
         
-        if "Question Created Successfully" not in create_content:
-            print("❌ Question creation failed")
-            return False
+        # Now expecting a JSON response with id and title
+        try:
+            create_data = json.loads(create_content)
+            question_id = create_data.get('id')
+            title = create_data.get('title')
             
-        # Extract question ID from the formatted response
-        # Response format: "**Question Created Successfully!**\nTitle: ...\nID: QUESTION_ID\nURL: ..."
-        lines = create_content.split('\n')
-        question_id = None
-        for line in lines:
-            if line.startswith("ID: "):
-                question_id = line.replace("ID: ", "").strip()
-                break
-        
-        if not question_id:
-            print("❌ Could not extract question ID from formatted response")
-            return False
+            if not question_id:
+                print("❌ No question ID in response")
+                return False
             
-        print(f"✅ Created question with ID: {question_id}")
+            print(f"✅ Created question with ID: {question_id} and title: {title}")
+        except json.JSONDecodeError:
+            print(f"❌ Expected JSON response, got: {create_content}")
+            return False
         
         # Step 2: Resolve the question
         resolve_result = await session.call_tool("resolve_question", {
@@ -482,7 +451,7 @@ async def test_create_and_resolve_question(session):
         resolve_content = resolve_result.content[0].text
         print(f"✅ Resolve response: {resolve_content}")
         
-        if "successfully" in resolve_content:
+        if resolve_content.lower() == "true":
             print("✅ Successfully created and resolved test question!")
             return True
         else:
@@ -517,19 +486,20 @@ async def test_structured_get_question(session):
             
         create_content = create_result.content[0].text
         
-        # Extract question ID
-        lines = create_content.split('\n')
-        question_id = None
-        for line in lines:
-            if line.startswith("ID: "):
-                question_id = line.replace("ID: ", "").strip()
-                break
-        
-        if not question_id:
-            print("❌ Could not extract question ID")
-            return False
+        # Now expecting a JSON response with id and title
+        try:
+            create_data = json.loads(create_content)
+            question_id = create_data.get('id')
+            title = create_data.get('title')
             
-        print(f"✅ Created test question with ID: {question_id}")
+            if not question_id:
+                print("❌ No question ID in response")
+                return False
+            
+            print(f"✅ Created test question with ID: {question_id} and title: {title}")
+        except json.JSONDecodeError:
+            print(f"❌ Expected JSON response, got: {create_content}")
+            return False
         
         # Now test get_question with structured response
         get_result = await session.call_tool("get_question", {
@@ -548,7 +518,6 @@ async def test_structured_get_question(session):
         if hasattr(content, 'text'):
             try:
                 # Try to parse as JSON - if successful, it's structured
-                import json
                 question_data = json.loads(content.text)
                 print("✅ Received structured JSON response from get_question")
                 

@@ -184,3 +184,9 @@ class QuestionsList(BaseModel):
     class Config:
         populate_by_name = True
         by_alias = True
+
+
+class QuestionReference(BaseModel):
+    """Minimal question reference with id and title"""
+    id: str
+    title: str

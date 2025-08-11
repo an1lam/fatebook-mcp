@@ -3,7 +3,7 @@ import httpx
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp import Context
 from dotenv import load_dotenv
-from models import Question, QuestionsResponse, QuestionsList
+from models import Question, QuestionsResponse, QuestionsList, QuestionReference
 
 load_dotenv()
 
@@ -123,17 +123,17 @@ async def get_question(ctx: Context, questionId: str, apiKey: str = "") -> Quest
 @mcp.tool()
 async def resolve_question(
     questionId: str, resolution: str, questionType: str, apiKey: str = ""
-) -> str:
+) -> bool:
     """Resolve a Fatebook question with YES/NO/AMBIGUOUS resolution"""
 
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
-        return "Error: API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
+        raise ValueError("API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)")
 
     # Validate resolution parameter
     valid_resolutions = ["YES", "NO", "AMBIGUOUS"]
     if resolution not in valid_resolutions:
-        return f"Error: resolution must be one of {valid_resolutions}"
+        raise ValueError(f"resolution must be one of {valid_resolutions}")
 
     data = {
         "questionId": questionId,
@@ -148,13 +148,12 @@ async def resolve_question(
                 "https://fatebook.io/api/v0/resolveQuestion", json=data
             )
             response.raise_for_status()
-
-            return f"Question resolved successfully: {response.text}"
+            return True
 
     except httpx.HTTPError as e:
-        return f"HTTP error: {e}"
+        raise
     except Exception as e:
-        return f"Error: {e}"
+        raise
 
 
 @mcp.tool()
@@ -168,16 +167,16 @@ async def create_question(
     shareWithLists: list[str] = [],
     shareWithEmail: list[str] = [],
     hideForecastsUntil: str = "",
-) -> str:
+) -> QuestionReference:
     """Create a new Fatebook question"""
 
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
-        return "Error: API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
+        raise ValueError("API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)")
 
     # Validate forecast parameter
     if not 0 <= forecast <= 1:
-        return "Error: forecast must be between 0 and 1"
+        raise ValueError("forecast must be between 0 and 1")
 
     params = {
         "apiKey": api_key,
@@ -214,32 +213,31 @@ async def create_question(
                 # Split on the last occurrence of -- to separate title and ID
                 if "--" in slug:
                     url_title, question_id = slug.rsplit("--", 1)
-                    
-                    return f"**Question Created Successfully!**\nTitle: {title}\nID: {question_id}\nURL: {url}"
+                    return QuestionReference(id=question_id, title=title)
                 else:
-                    return f"**Question Created Successfully!**\nTitle: {title}\nURL: {url}\n(Could not parse question ID from URL format)"
+                    raise ValueError(f"Could not parse question ID from URL: {url}")
             else:
-                return f"**Question Created Successfully!**\nTitle: {title}\nResponse: {url}"
+                raise ValueError(f"Unexpected response format: {url}")
 
     except httpx.HTTPError as e:
-        return f"HTTP error: {e}"
+        raise
     except Exception as e:
-        return f"Error: {e}"
+        raise
 
 
 @mcp.tool()
 async def add_forecast(
     questionId: str, forecast: float, apiKey: str = "", optionId: str = ""
-) -> str:
+) -> bool:
     """Add a forecast to a Fatebook question"""
 
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
-        return "Error: API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
+        raise ValueError("API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)")
 
     # Validate forecast parameter
     if not 0 <= forecast <= 1:
-        return "Error: forecast must be between 0 and 1"
+        raise ValueError("forecast must be between 0 and 1")
 
     data = {"questionId": questionId, "forecast": forecast, "apiKey": api_key}
 
@@ -253,22 +251,21 @@ async def add_forecast(
                 "https://fatebook.io/api/v0/addForecast", json=data
             )
             response.raise_for_status()
-
-            return f"Forecast added successfully: {response.text}"
+            return True
 
     except httpx.HTTPError as e:
-        return f"HTTP error: {e}"
+        raise
     except Exception as e:
-        return f"Error: {e}"
+        raise
 
 
 @mcp.tool()
-async def add_comment(questionId: str, comment: str, apiKey: str = "") -> str:
+async def add_comment(questionId: str, comment: str, apiKey: str = "") -> bool:
     """Add a comment to a Fatebook question"""
 
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
-        return "Error: API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
+        raise ValueError("API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)")
 
     data = {"questionId": questionId, "comment": comment, "apiKey": api_key}
 
@@ -278,22 +275,21 @@ async def add_comment(questionId: str, comment: str, apiKey: str = "") -> str:
                 "https://fatebook.io/api/v0/addComment", json=data
             )
             response.raise_for_status()
-
-            return f"Comment added successfully: {response.text}"
+            return True
 
     except httpx.HTTPError as e:
-        return f"HTTP error: {e}"
+        raise
     except Exception as e:
-        return f"Error: {e}"
+        raise
 
 
 @mcp.tool()
-async def delete_question(questionId: str, apiKey: str = "") -> str:
+async def delete_question(questionId: str, apiKey: str = "") -> bool:
     """Delete a Fatebook question"""
 
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
-        return "Error: API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
+        raise ValueError("API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)")
 
     params = {"questionId": questionId, "apiKey": api_key}
 
@@ -303,13 +299,12 @@ async def delete_question(questionId: str, apiKey: str = "") -> str:
                 "https://fatebook.io/api/v0/deleteQuestion", params=params
             )
             response.raise_for_status()
-
-            return f"Question deleted successfully: {response.text}"
+            return True
 
     except httpx.HTTPError as e:
-        return f"HTTP error: {e}"
+        raise
     except Exception as e:
-        return f"Error: {e}"
+        raise
 
 
 @mcp.tool()
@@ -319,12 +314,12 @@ async def edit_question(
     title: str = "",
     resolveBy: str = "",
     notes: str = "",
-) -> str:
+) -> bool:
     """Edit a Fatebook question"""
 
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
-        return "Error: API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
+        raise ValueError("API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)")
 
     data = {"questionId": questionId, "apiKey": api_key}
 
@@ -342,17 +337,16 @@ async def edit_question(
                 "https://fatebook.io/api/v0/editQuestion", json=data
             )
             response.raise_for_status()
-
-            return f"Question edited successfully: {response.text}"
+            return True
 
     except httpx.HTTPError as e:
-        return f"HTTP error: {e}"
+        raise
     except Exception as e:
-        return f"Error: {e}"
+        raise
 
 
 @mcp.tool()
-async def count_forecasts(userId: str) -> str:
+async def count_forecasts(userId: str) -> int:
     """Count forecasts for a specific user"""
 
     params = {"userId": userId}
@@ -363,13 +357,15 @@ async def count_forecasts(userId: str) -> str:
                 "https://fatebook.io/api/v0/countForecasts", params=params
             )
             response.raise_for_status()
-
-            return f"Forecast count data: {response.text}"
+            
+            # Parse JSON response and return the count
+            data = response.json()
+            return int(data.get("count", 0))
 
     except httpx.HTTPError as e:
-        return f"HTTP error: {e}"
+        raise
     except Exception as e:
-        return f"Error: {e}"
+        raise
 
 
 if __name__ == "__main__":
