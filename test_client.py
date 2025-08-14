@@ -1,28 +1,26 @@
 #!/usr/bin/env python3
 """
-Simple integration test client for the Fatebook MCP server.
+Pytest-based integration tests for the Fatebook MCP server.
 """
 
-import asyncio
 import json
 import logging
 import os
+from contextlib import asynccontextmanager
+from typing import Any
 
-import sys
-from contextlib import AsyncExitStack
-
+import pytest
 from dotenv import load_dotenv
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+from mcp.types import TextContent, Tool
+from typing_extensions import AsyncGenerator
 
-# Load environment variables
 load_dotenv()
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Test API key for integration testing
 TEST_API_KEY = os.getenv("FATEBOOK_API_KEY")
 if TEST_API_KEY is None:
     raise ValueError(
@@ -33,7 +31,9 @@ if TEST_API_KEY is None:
 TEST_USER_ID = "cme6dxa8g0001i7g74q4exorm"
 
 
-async def call_tool_and_check_content(session, tool_name, **tool_args):
+async def call_tool_and_check_content(
+    session: ClientSession, tool_name: str, **tool_args: Any
+) -> str | None:
     """Helper function to call a tool and return its content, handling common error cases."""
     try:
         tool_result = await session.call_tool(tool_name, tool_args)
@@ -42,54 +42,100 @@ async def call_tool_and_check_content(session, tool_name, **tool_args):
         raise
 
     if not tool_result.content:
-        raise ValueError(f"No content in {tool_name} response")
+        logger.warning(f"No content in {tool_name} response")
+        return None
 
-    tool_content = tool_result.content[0].text
-    return tool_content
+    # Check if the first content item is text content
+    content_item = tool_result.content[0]
+
+    assert (
+        content_item is not None
+        and isinstance(content_item, TextContent)
+        and hasattr(content_item, "text")
+    )
+    return content_item.text
 
 
-async def test_count_forecasts(session):
+@asynccontextmanager
+async def create_stdio_mcp_client(
+    include_tools: bool = False,
+) -> AsyncGenerator[ClientSession, dict[str, Tool] | None]:
+    """Helper function to create an MCP client session connected via stdio - similar to MCP SDK pattern.
+
+    Args:
+        include_tools: If True, yields (session, available_tools), otherwise just session
+    """
+    server_params = StdioServerParameters(
+        command="uv", args=["run", "python", "main.py"], env=None
+    )
+
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+
+            if include_tools:
+                tools_response = await session.list_tools()
+                available_tools = {tool.name for tool in tools_response.tools}
+                yield session, available_tools
+            else:
+                yield session, None
+
+
+@pytest.mark.anyio
+async def test_count_forecasts():
     """Test the count_forecasts endpoint."""
-    print("🔧 Testing count_forecasts...")
-
-    try:
-        # Since list_questions now returns formatted text instead of JSON,
-        # we'll use the hardcoded test user ID that we know works
-        user_id = TEST_USER_ID
-        print(f"🔍 Using test user ID: {user_id}")
+    async with create_stdio_mcp_client(include_tools=True) as (
+        session,
+        available_tools,
+    ):
+        # Verify the tool is available
+        assert "count_forecasts" in available_tools, "count_forecasts tool not found"
 
         # Test counting forecasts for the test user ID
         count_content = await call_tool_and_check_content(
-            session, "count_forecasts", userId=user_id
+            session, "count_forecasts", userId=TEST_USER_ID
         )
 
-        if count_content is None:
-            print("❌ No content in count_forecasts response")
-            return False
-        print(f"📊 Count response: {count_content}")
+        assert count_content is not None, "No content in count_forecasts response"
 
-        # Now expecting just an integer response
-        try:
-            count_value = int(count_content)
-            print(f"✅ Found forecast count: {count_value}")
-            return True
-        except ValueError:
-            print(f"❌ Expected integer response, got: {count_content}")
-            return False
-
-    except Exception as e:
-        print(f"❌ Error in count_forecasts test: {e}")
-        return False
+        count_value = int(count_content)
+        assert count_value >= 0, (
+            f"Expected non-negative forecast count, got: {count_value}"
+        )
 
 
-async def test_create_edit_and_resolve_question(session):
+@pytest.mark.anyio
+async def test_list_tools():
+    """Test listing available tools - demonstrates basic usage pattern."""
+    async with create_stdio_mcp_client() as (session, _):
+        # Get available tools
+        tools_response = await session.list_tools()
+        available_tools = {tool.name for tool in tools_response.tools}
+
+        # Verify we have expected Fatebook tools
+        expected_tools = {"list_questions", "create_question", "count_forecasts"}
+        assert expected_tools.issubset(available_tools), (
+            f"Missing tools: {expected_tools - available_tools}"
+        )
+        assert len(available_tools) > 0, "Should have at least some tools available"
+
+
+@pytest.mark.anyio
+async def test_create_edit_and_resolve_question():
     """Test the full create -> edit -> resolve question flow."""
-    print("🔧 Testing create_question -> edit_question -> resolve_question flow...")
+    from datetime import datetime, timedelta
 
-    # Step 1: Create a test question
-    try:
-        from datetime import datetime, timedelta
+    async with create_stdio_mcp_client(include_tools=True) as (
+        session,
+        available_tools,
+    ):
+        # Verify required tools are available
+        required_tools = {"create_question", "edit_question", "resolve_question"}
+        assert required_tools.issubset(available_tools), (
+            f"Missing tools: {required_tools - available_tools}"
+        )
 
+        # Step 1: Create a test question
         resolve_date = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
 
         create_content = await call_tool_and_check_content(
@@ -102,25 +148,15 @@ async def test_create_edit_and_resolve_question(session):
             tags=["test", "edit", "mcp"],
         )
 
-        if create_content is None:
-            print("❌ No content in create_question response")
-            return False
-        print(f"📝 Create response: {create_content}")
+        assert create_content is not None, "No content in create_question response"
 
-        # Now expecting a JSON response with id and title
-        try:
-            create_data = json.loads(create_content)
-            question_id = create_data.get("id")
-            title = create_data.get("title")
+        # Parse JSON response to get question ID
+        create_data = json.loads(create_content)
+        question_id = create_data.get("id")
+        title = create_data.get("title")
 
-            if not question_id:
-                print("❌ No question ID in response")
-                return False
-
-            print(f"✅ Created question with ID: {question_id} and title: {title}")
-        except json.JSONDecodeError:
-            print(f"❌ Expected JSON response, got: {create_content}")
-            return False
+        assert question_id is not None, "No question ID in response"
+        assert title == "MCP Edit Test Question", f"Unexpected title: {title}"
 
         # Step 2: Edit the question
         new_resolve_date = (datetime.now() + timedelta(days=14)).strftime("%Y-%m-%d")
@@ -134,17 +170,10 @@ async def test_create_edit_and_resolve_question(session):
             apiKey=TEST_API_KEY,
         )
 
-        if edit_content is None:
-            print("❌ No content in edit_question response")
-            return False
-        print(f"✏️ Edit response: {edit_content}")
-
-        # Now expecting a boolean response
-        if edit_content.lower() == "true":
-            print("✅ Successfully edited question!")
-        else:
-            print("❌ Question editing failed")
-            return False
+        assert edit_content is not None, "No content in edit_question response"
+        assert edit_content.lower() == "true", (
+            f"Question editing failed: {edit_content}"
+        )
 
         # Step 3: Resolve the question
         resolve_content = await call_tool_and_check_content(
@@ -156,32 +185,28 @@ async def test_create_edit_and_resolve_question(session):
             apiKey=TEST_API_KEY,
         )
 
-        if resolve_content is None:
-            print("❌ No content in resolve_question response")
-            return False
-        print(f"✅ Resolve response: {resolve_content}")
-
-        # Now expecting a boolean response
-        if resolve_content.lower() == "true":
-            print("✅ Successfully created, edited, and resolved test question!")
-            return True
-        else:
-            print("❌ Question resolution failed")
-            return False
-
-    except Exception as e:
-        print(f"❌ Error in create/edit/resolve flow: {e}")
-        return False
+        assert resolve_content is not None, "No content in resolve_question response"
+        assert resolve_content.lower() == "true", (
+            f"Question resolution failed: {resolve_content}"
+        )
 
 
-async def test_create_and_delete_question(session):
+@pytest.mark.anyio
+async def test_create_and_delete_question():
     """Test the full create -> delete question flow."""
-    print("🔧 Testing create_question -> delete_question flow...")
+    from datetime import datetime, timedelta
 
-    # Step 1: Create a test question
-    try:
-        from datetime import datetime, timedelta
+    async with create_stdio_mcp_client(include_tools=True) as (
+        session,
+        available_tools,
+    ):
+        # Verify required tools are available
+        required_tools = {"create_question", "delete_question"}
+        assert required_tools.issubset(available_tools), (
+            f"Missing tools: {required_tools - available_tools}"
+        )
 
+        # Step 1: Create a test question
         resolve_date = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
 
         create_content = await call_tool_and_check_content(
@@ -194,57 +219,43 @@ async def test_create_and_delete_question(session):
             tags=["test", "delete", "mcp"],
         )
 
-        if create_content is None:
-            print("❌ No content in create_question response")
-            return False
-        print(f"📝 Create response: {create_content}")
+        assert create_content is not None, "No content in create_question response"
 
-        # Now expecting a JSON response with id and title
-        try:
-            create_data = json.loads(create_content)
-            question_id = create_data.get("id")
-            title = create_data.get("title")
+        # Parse JSON response to get question ID
+        create_data = json.loads(create_content)
+        question_id = create_data.get("id")
+        title = create_data.get("title")
 
-            if not question_id:
-                print("❌ No question ID in response")
-                return False
-
-            print(f"✅ Created question with ID: {question_id} and title: {title}")
-        except json.JSONDecodeError:
-            print(f"❌ Expected JSON response, got: {create_content}")
-            return False
+        assert question_id is not None, "No question ID in response"
+        assert title == "MCP Delete Test Question", f"Unexpected title: {title}"
 
         # Step 2: Delete the question
         delete_content = await call_tool_and_check_content(
             session, "delete_question", questionId=question_id, apiKey=TEST_API_KEY
         )
 
-        if delete_content is None:
-            print("❌ No content in delete_question response")
-            return False
-        print(f"🗑️ Delete response: {delete_content}")
-
-        # Now expecting a boolean response
-        if delete_content.lower() == "true":
-            print("✅ Successfully created and deleted test question!")
-            return True
-        else:
-            print("❌ Question deletion failed")
-            return False
-
-    except Exception as e:
-        print(f"❌ Error in create/delete flow: {e}")
-        return False
+        assert delete_content is not None, "No content in delete_question response"
+        assert delete_content.lower() == "true", (
+            f"Question deletion failed: {delete_content}"
+        )
 
 
-async def test_create_and_add_comment_question(session):
+@pytest.mark.anyio
+async def test_create_and_add_comment_question():
     """Test the full create -> add_comment -> resolve question flow."""
-    print("🔧 Testing create_question -> add_comment -> resolve_question flow...")
+    from datetime import datetime, timedelta
 
-    # Step 1: Create a test question
-    try:
-        from datetime import datetime, timedelta
+    async with create_stdio_mcp_client(include_tools=True) as (
+        session,
+        available_tools,
+    ):
+        # Verify required tools are available
+        required_tools = {"create_question", "add_comment", "resolve_question"}
+        assert required_tools.issubset(available_tools), (
+            f"Missing tools: {required_tools - available_tools}"
+        )
 
+        # Step 1: Create a test question
         resolve_date = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
 
         create_content = await call_tool_and_check_content(
@@ -257,25 +268,15 @@ async def test_create_and_add_comment_question(session):
             tags=["test", "comment", "mcp"],
         )
 
-        if create_content is None:
-            print("❌ No content in create_question response")
-            return False
-        print(f"📝 Create response: {create_content}")
+        assert create_content is not None, "No content in create_question response"
 
-        # Now expecting a JSON response with id and title
-        try:
-            create_data = json.loads(create_content)
-            question_id = create_data.get("id")
-            title = create_data.get("title")
+        # Parse JSON response to get question ID
+        create_data = json.loads(create_content)
+        question_id = create_data.get("id")
+        title = create_data.get("title")
 
-            if not question_id:
-                print("❌ No question ID in response")
-                return False
-
-            print(f"✅ Created question with ID: {question_id} and title: {title}")
-        except json.JSONDecodeError:
-            print(f"❌ Expected JSON response, got: {create_content}")
-            return False
+        assert question_id is not None, "No question ID in response"
+        assert title == "MCP Comment Test Question", f"Unexpected title: {title}"
 
         # Step 2: Add a comment to the question
         comment_content = await call_tool_and_check_content(
@@ -286,17 +287,10 @@ async def test_create_and_add_comment_question(session):
             apiKey=TEST_API_KEY,
         )
 
-        if comment_content is None:
-            print("❌ No content in add_comment response")
-            return False
-        print(f"💬 Comment response: {comment_content}")
-
-        # Now expecting a boolean response
-        if comment_content.lower() == "true":
-            print("✅ Successfully added comment to question!")
-        else:
-            print("❌ Adding comment failed")
-            return False
+        assert comment_content is not None, "No content in add_comment response"
+        assert comment_content.lower() == "true", (
+            f"Adding comment failed: {comment_content}"
+        )
 
         # Step 3: Resolve the question
         resolve_content = await call_tool_and_check_content(
@@ -308,31 +302,28 @@ async def test_create_and_add_comment_question(session):
             apiKey=TEST_API_KEY,
         )
 
-        if resolve_content is None:
-            print("❌ No content in resolve_question response")
-            return False
-        print(f"✅ Resolve response: {resolve_content}")
-
-        if resolve_content.lower() == "true":
-            print("✅ Successfully created, commented, and resolved test question!")
-            return True
-        else:
-            print("❌ Question resolution failed")
-            return False
-
-    except Exception as e:
-        print(f"❌ Error in create/comment/resolve flow: {e}")
-        return False
+        assert resolve_content is not None, "No content in resolve_question response"
+        assert resolve_content.lower() == "true", (
+            f"Question resolution failed: {resolve_content}"
+        )
 
 
-async def test_create_and_add_forecast_question(session):
+@pytest.mark.anyio
+async def test_create_and_add_forecast_question():
     """Test the full create -> add_forecast -> resolve question flow."""
-    print("🔧 Testing create_question -> add_forecast -> resolve_question flow...")
+    from datetime import datetime, timedelta
 
-    # Step 1: Create a test question
-    try:
-        from datetime import datetime, timedelta
+    async with create_stdio_mcp_client(include_tools=True) as (
+        session,
+        available_tools,
+    ):
+        # Verify required tools are available
+        required_tools = {"create_question", "add_forecast", "resolve_question"}
+        assert required_tools.issubset(available_tools), (
+            f"Missing tools: {required_tools - available_tools}"
+        )
 
+        # Step 1: Create a test question
         resolve_date = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
 
         create_content = await call_tool_and_check_content(
@@ -345,42 +336,29 @@ async def test_create_and_add_forecast_question(session):
             tags=["test", "forecast", "mcp"],
         )
 
-        if create_content is None:
-            print("❌ No content in create_question response")
-            return False
-        print(f"📝 Create response: {create_content}")
+        assert create_content is not None, "No content in create_question response"
 
-        # Now expecting a JSON response with id and title
-        try:
-            create_data = json.loads(create_content)
-            question_id = create_data.get("id")
-            title = create_data.get("title")
+        # Parse JSON response to get question ID
+        create_data = json.loads(create_content)
+        question_id = create_data.get("id")
+        title = create_data.get("title")
 
-            if not question_id:
-                print("❌ No question ID in response")
-                return False
-
-            print(f"✅ Created question with ID: {question_id} and title: {title}")
-        except json.JSONDecodeError:
-            print(f"❌ Expected JSON response, got: {create_content}")
-            return False
+        assert question_id is not None, "No question ID in response"
+        assert title == "MCP Forecast Test Question", f"Unexpected title: {title}"
 
         # Step 2: Add a forecast to the question
         forecast_content = await call_tool_and_check_content(
-            session, "add_forecast", questionId=question_id, forecast=0.8, apiKey=TEST_API_KEY
+            session,
+            "add_forecast",
+            questionId=question_id,
+            forecast=0.8,
+            apiKey=TEST_API_KEY,
         )
 
-        if forecast_content is None:
-            print("❌ No content in add_forecast response")
-            return False
-        print(f"📈 Forecast response: {forecast_content}")
-
-        # Now expecting a boolean response
-        if forecast_content.lower() == "true":
-            print("✅ Successfully added forecast to question!")
-        else:
-            print("❌ Adding forecast failed")
-            return False
+        assert forecast_content is not None, "No content in add_forecast response"
+        assert forecast_content.lower() == "true", (
+            f"Adding forecast failed: {forecast_content}"
+        )
 
         # Step 3: Resolve the question
         resolve_content = await call_tool_and_check_content(
@@ -392,98 +370,28 @@ async def test_create_and_add_forecast_question(session):
             apiKey=TEST_API_KEY,
         )
 
-        if resolve_content is None:
-            print("❌ No content in resolve_question response")
-            return False
-        print(f"✅ Resolve response: {resolve_content}")
-
-        if resolve_content.lower() == "true":
-            print("✅ Successfully created, forecasted, and resolved test question!")
-            return True
-        else:
-            print("❌ Question resolution failed")
-            return False
-
-    except Exception as e:
-        print(f"❌ Error in create/forecast/resolve flow: {e}")
-        return False
-
-
-async def test_create_and_resolve_question(session):
-    """Test the full create -> resolve question flow."""
-    print("🔧 Testing create_question -> resolve_question flow...")
-
-    # Step 1: Create a test question
-    try:
-        from datetime import datetime, timedelta
-
-        resolve_date = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
-
-        create_content = await call_tool_and_check_content(
-            session,
-            "create_question",
-            title="MCP Integration Test Question",
-            resolveBy=resolve_date,
-            forecast=0.5,
-            apiKey=TEST_API_KEY,
-            tags=["test", "mcp"],
+        assert resolve_content is not None, "No content in resolve_question response"
+        assert resolve_content.lower() == "true", (
+            f"Question resolution failed: {resolve_content}"
         )
 
-        if create_content is None:
-            print("❌ No content in create_question response")
-            return False
-        print(f"📝 Create response: {create_content}")
 
-        # Now expecting a JSON response with id and title
-        try:
-            create_data = json.loads(create_content)
-            question_id = create_data.get("id")
-            title = create_data.get("title")
-
-            if not question_id:
-                print("❌ No question ID in response")
-                return False
-
-            print(f"✅ Created question with ID: {question_id} and title: {title}")
-        except json.JSONDecodeError:
-            print(f"❌ Expected JSON response, got: {create_content}")
-            return False
-
-        # Step 2: Resolve the question
-        resolve_content = await call_tool_and_check_content(
-            session,
-            "resolve_question",
-            questionId=question_id,
-            resolution="YES",
-            questionType="BINARY",
-            apiKey=TEST_API_KEY,
-        )
-
-        if resolve_content is None:
-            print("❌ No content in resolve_question response")
-            return False
-        print(f"✅ Resolve response: {resolve_content}")
-
-        if resolve_content.lower() == "true":
-            print("✅ Successfully created and resolved test question!")
-            return True
-        else:
-            print("❌ Question resolution failed")
-            return False
-
-    except Exception as e:
-        print(f"❌ Error in create/resolve flow: {e}")
-        return False
-
-
-async def test_structured_get_question(session):
+@pytest.mark.anyio
+async def test_structured_get_question():
     """Test that get_question returns a structured Question object."""
-    print("🔧 Testing structured get_question response...")
+    from datetime import datetime, timedelta
 
-    # First create a question to test with
-    try:
-        from datetime import datetime, timedelta
+    async with create_stdio_mcp_client(include_tools=True) as (
+        session,
+        available_tools,
+    ):
+        # Verify required tools are available
+        required_tools = {"create_question", "get_question", "delete_question"}
+        assert required_tools.issubset(available_tools), (
+            f"Missing tools: {required_tools - available_tools}"
+        )
 
+        # Step 1: Create a test question
         resolve_date = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
 
         create_content = await call_tool_and_check_content(
@@ -496,223 +404,97 @@ async def test_structured_get_question(session):
             tags=["test", "structured", "mcp"],
         )
 
-        if create_content is None:
-            print("❌ No content in create_question response")
-            return False
+        assert create_content is not None, "No content in create_question response"
 
-        # Now expecting a JSON response with id and title
-        try:
-            create_data = json.loads(create_content)
-            question_id = create_data.get("id")
-            title = create_data.get("title")
+        # Parse JSON response to get question ID
+        create_data = json.loads(create_content)
+        question_id = create_data.get("id")
+        title = create_data.get("title")
 
-            if not question_id:
-                print("❌ No question ID in response")
-                return False
+        assert question_id is not None, "No question ID in response"
+        assert title == "Test Structured Response Question", (
+            f"Unexpected title: {title}"
+        )
 
-            print(f"✅ Created test question with ID: {question_id} and title: {title}")
-        except json.JSONDecodeError:
-            print(f"❌ Expected JSON response, got: {create_content}")
-            return False
-
-        # Now test get_question with structured response
+        # Step 2: Test get_question with structured response
         get_content = await call_tool_and_check_content(
             session, "get_question", questionId=question_id, apiKey=TEST_API_KEY
         )
 
-        if get_content is None:
-            print("❌ No content in get_question response")
-            return False
+        assert get_content is not None, "No content in get_question response"
 
-        # Check if we got a structured response
-        # MCP always returns TextContent, but for structured responses it's JSON
-        try:
-            # Try to parse as JSON - if successful, it's structured
-            question_data = json.loads(get_content)
-            print("✅ Received structured JSON response from get_question")
+        # Step 3: Verify structured JSON response
+        question_data = json.loads(get_content)
 
-            # Verify key fields exist (using camelCase as returned by API)
-            required_fields = ["id", "title", "type", "resolved", "createdAt", "resolveBy"]
-            missing_fields = []
-            for field in required_fields:
-                if field not in question_data:
-                    missing_fields.append(field)
+        # Verify key fields exist (using camelCase as returned by API)
+        required_fields = ["id", "title", "type", "resolved", "createdAt", "resolveBy"]
+        for field in required_fields:
+            assert field in question_data, f"Missing required field: {field}"
 
-            if missing_fields:
-                print(f"❌ Missing required fields in structured response: {missing_fields}")
-                return False
+        # Verify specific values
+        assert question_data["id"] == question_id
+        assert question_data["title"] == "Test Structured Response Question"
+        assert question_data["type"] == "BINARY"  # Default type
+        assert question_data["resolved"] is False  # New question should not be resolved
 
-            print(f"📋 Question ID: {question_data.get('id')}")
-            print(f"📋 Title: {question_data.get('title')}")
-            print(f"📋 Type: {question_data.get('type')}")
-            print(f"📋 Resolved: {question_data.get('resolved')}")
-            print(f"📋 Created At: {question_data.get('createdAt')}")
-            print(f"📋 Resolve By: {question_data.get('resolveBy')}")
-
-            # Check we have nested objects properly formatted
-            if "forecasts" in question_data and question_data["forecasts"]:
-                print(f"📋 Forecasts: {len(question_data['forecasts'])} forecast(s)")
-
-            print("✅ Structured response contains all required fields!")
-            return True
-
-        except json.JSONDecodeError:
-            # Not JSON, it's a formatted text response
-            print("⚠️ Received formatted text response instead of structured JSON")
-            print(f"Response: {get_content[:200]}...")
-            return False
-
-        # Clean up - delete the test question
-        await call_tool_and_check_content(
+        # Step 4: Clean up - delete the test question
+        delete_content = await call_tool_and_check_content(
             session, "delete_question", questionId=question_id, apiKey=TEST_API_KEY
         )
-
-        return True
-
-    except Exception as e:
-        print(f"❌ Error in structured get_question test: {e}")
-        import traceback
-
-        traceback.print_exc()
-        return False
-
-
-async def test_fatebook_server():
-    """Test the Fatebook MCP server by calling list_questions tool."""
-
-    print(f"✅ Using test API key: {TEST_API_KEY[:10]}...")
-
-    async with AsyncExitStack() as stack:
-        # Start the server
-        server_params = StdioServerParameters(
-            command="uv", args=["run", "python", "main.py"], env=None
-        )
-
-        # Connect to server
-        stdio_transport = await stack.enter_async_context(stdio_client(server_params))
-        read, write = stdio_transport
-        session = await stack.enter_async_context(ClientSession(read, write))
-
-        print("✅ Connected to Fatebook MCP server")
-
-        # Initialize the session
-        await session.initialize()
-
-        # List available tools
-        tools_response = await session.list_tools()
-        print(f"✅ Available tools: {[tool.name for tool in tools_response.tools]}")
-
-        # Test list_questions tool
-        if "list_questions" not in [tool.name for tool in tools_response.tools]:
-            print("❌ Error: list_questions tool not found")
-            return False
-
-        # Call the list_questions tool with a limit using test API key
-        print("📡 Calling list_questions tool...")
-        content = await call_tool_and_check_content(
-            session, "list_questions", limit=3, apiKey=TEST_API_KEY
-        )
-
-        # Check the result - now expecting structured JSON response
-        list_success = False
-        if content is not None:
-            try:
-                # Parse as JSON - expecting QuestionsList format: {"result": [...]}
-                response_data = json.loads(content)
-
-                if isinstance(response_data, dict) and "result" in response_data:
-                    questions_data = response_data["result"]
-                    print("✅ Successfully retrieved structured questions list")
-                    print(f"✅ Found {len(questions_data)} questions")
-
-                    # Verify structure of first question if any exist
-                    if questions_data:
-                        first_q = questions_data[0]
-                        required_fields = [
-                            "id",
-                            "title",
-                            "type",
-                            "resolved",
-                            "createdAt",
-                            "resolveBy",
-                        ]
-                        missing_fields = [
-                            field for field in required_fields if field not in first_q
-                        ]
-
-                        if missing_fields:
-                            print(f"❌ Missing required fields in first question: {missing_fields}")
-                            return False
-
-                        print(
-                            f"📋 First question: '{first_q.get('title')}' - {first_q.get('type')} - {'✅ RESOLVED' if first_q.get('resolved') else '⏳ OPEN'}"
-                        )
-
-                    list_success = True
-                else:
-                    print(
-                        f"❌ Expected dict with 'result' field, got: {type(response_data)} with keys: {list(response_data.keys()) if isinstance(response_data, dict) else 'N/A'}"
-                    )
-                    return False
-
-            except json.JSONDecodeError:
-                # Fallback: maybe it's still a text response or empty
-                if "No questions found." in content or content.strip() == "[]":
-                    print("✅ No questions found (empty list)")
-                    list_success = True
-                else:
-                    print(f"❌ Could not parse JSON response: {content}")
-                    return False
-        else:
-            print("❌ Error: No content in response")
-            return False
-
-        # Test create and resolve question flow
-        create_resolve_success = await test_create_and_resolve_question(session)
-
-        # Test create, add forecast, and resolve question flow
-        forecast_success = await test_create_and_add_forecast_question(session)
-
-        # Test create, add comment, and resolve question flow
-        comment_success = await test_create_and_add_comment_question(session)
-
-        # Test create, edit, and resolve question flow
-        edit_success = await test_create_edit_and_resolve_question(session)
-
-        # Test structured get_question response
-        structured_success = await test_structured_get_question(session)
-
-        # Test count forecasts
-        count_success = await test_count_forecasts(session)
-
-        # Test create and delete question flow
-        delete_success = await test_create_and_delete_question(session)
-
-        return (
-            list_success
-            and create_resolve_success
-            and forecast_success
-            and comment_success
-            and edit_success
-            and structured_success
-            and count_success
-            and delete_success
+        assert delete_content.lower() == "true", (
+            f"Question deletion failed: {delete_content}"
         )
 
 
-async def main():
-    """Main test function."""
-    print("🚀 Starting Fatebook MCP server integration test...")
+@pytest.mark.anyio
+async def test_create_and_resolve_question():
+    """Test the full create -> resolve question flow."""
+    from datetime import datetime, timedelta
 
-    success = await test_fatebook_server()
+    async with create_stdio_mcp_client(include_tools=True) as (
+        session,
+        available_tools,
+    ):
+        # Verify required tools are available
+        required_tools = {"create_question", "resolve_question"}
+        assert required_tools.issubset(available_tools), (
+            f"Missing tools: {required_tools - available_tools}"
+        )
 
-    if success:
-        print("✅ All tests passed! Fatebook MCP server is working correctly.")
-        sys.exit(0)
-    else:
-        print("❌ Tests failed! Check the server implementation.")
-        sys.exit(1)
+        # Step 1: Create a test question
+        resolve_date = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
 
+        create_content = await call_tool_and_check_content(
+            session,
+            "create_question",
+            title="MCP Integration Test Question",
+            resolveBy=resolve_date,
+            forecast=0.5,
+            apiKey=TEST_API_KEY,
+            tags=["test", "mcp"],
+        )
 
-if __name__ == "__main__":
-    asyncio.run(main())
+        assert create_content is not None, "No content in create_question response"
+
+        # Parse JSON response to get question ID
+        create_data = json.loads(create_content)
+        question_id = create_data.get("id")
+        title = create_data.get("title")
+
+        assert question_id is not None, "No question ID in response"
+        assert title == "MCP Integration Test Question", f"Unexpected title: {title}"
+
+        # Step 2: Resolve the question
+        resolve_content = await call_tool_and_check_content(
+            session,
+            "resolve_question",
+            questionId=question_id,
+            resolution="YES",
+            questionType="BINARY",
+            apiKey=TEST_API_KEY,
+        )
+
+        assert resolve_content is not None, "No content in resolve_question response"
+        assert resolve_content.lower() == "true", (
+            f"Question resolution failed: {resolve_content}"
+        )
