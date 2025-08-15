@@ -1,10 +1,11 @@
-from typing import Any
 import os
+from typing import Any
+
 import httpx
-from mcp.server.fastmcp import FastMCP
-from mcp.server.fastmcp import Context
 from dotenv import load_dotenv
-from models import Question, QuestionsResponse, QuestionsList, QuestionReference
+from mcp.server.fastmcp import Context, FastMCP
+
+from models import Question, QuestionReference, QuestionsList, QuestionsResponse
 
 load_dotenv()
 
