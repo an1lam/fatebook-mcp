@@ -9,4 +9,13 @@ dependencies = [
     "mcp[cli]>=1.12.4",
     "pydantic>=2.11.7",
     "python-dotenv>=1.1.1",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
 ]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["."]
+python_files = "test_*.py"
+python_functions = "test_*"
+markers = ["integration: marks tests as integration tests"]
