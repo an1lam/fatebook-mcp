@@ -60,9 +60,7 @@ async def list_questions(
 
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.get(
-                "https://fatebook.io/api/v0/getQuestions", params=params
-            )
+            response = await client.get("https://fatebook.io/api/v0/getQuestions", params=params)
             response.raise_for_status()
 
             data = response.json()
@@ -104,9 +102,7 @@ async def get_question(ctx: Context, questionId: str, apiKey: str = "") -> Quest
 
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.get(
-                "https://fatebook.io/api/v0/getQuestion", params=params
-            )
+            response = await client.get("https://fatebook.io/api/v0/getQuestion", params=params)
             response.raise_for_status()
 
             question_data = response.json()
@@ -153,9 +149,7 @@ async def resolve_question(
 
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://fatebook.io/api/v0/resolveQuestion", json=data
-            )
+            response = await client.post("https://fatebook.io/api/v0/resolveQuestion", json=data)
             response.raise_for_status()
             return True
 
@@ -210,9 +204,7 @@ async def create_question(
 
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://fatebook.io/api/v0/createQuestion", params=params
-            )
+            response = await client.post("https://fatebook.io/api/v0/createQuestion", params=params)
             response.raise_for_status()
 
             # Parse the URL from the response to extract title and ID
@@ -260,9 +252,7 @@ async def add_forecast(
 
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://fatebook.io/api/v0/addForecast", json=data
-            )
+            response = await client.post("https://fatebook.io/api/v0/addForecast", json=data)
             response.raise_for_status()
             return True
 
@@ -286,9 +276,7 @@ async def add_comment(questionId: str, comment: str, apiKey: str = "") -> bool:
 
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://fatebook.io/api/v0/addComment", json=data
-            )
+            response = await client.post("https://fatebook.io/api/v0/addComment", json=data)
             response.raise_for_status()
             return True
 
@@ -352,9 +340,7 @@ async def edit_question(
 
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.patch(
-                "https://fatebook.io/api/v0/editQuestion", json=data
-            )
+            response = await client.patch("https://fatebook.io/api/v0/editQuestion", json=data)
             response.raise_for_status()
             return True
 
@@ -372,9 +358,7 @@ async def count_forecasts(userId: str) -> int:
 
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.get(
-                "https://fatebook.io/api/v0/countForecasts", params=params
-            )
+            response = await client.get("https://fatebook.io/api/v0/countForecasts", params=params)
             response.raise_for_status()
 
             # Parse JSON response and return the count
