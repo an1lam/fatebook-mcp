@@ -5,4 +5,4 @@
 - [ ] Add instructions for how to set up with Claude Code
 - [ ] Remove null fields from responses to avoid wasting context
 - [x] Clean up test_client.py, since Claude has left it a bit of a mess
-- [ ] Set up pre-commit & GitHub CI for linting, tests, etc.
+- [x] Set up GitHub CI for linting, tests, etc.
