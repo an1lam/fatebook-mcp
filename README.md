@@ -51,23 +51,34 @@ Or create a `.env` file:
 FATEBOOK_API_KEY=your-api-key-here
 ```
 
-## Usage with Claude Desktop
+## Usage with Claude Code and Claude Desktop
 
-Add the following to your Claude Desktop configuration file:
+### Claude Code (CLI)
 
-### macOS
-Location: `~/Library/Application Support/Claude/claude_desktop_config.json`
+For Claude Code CLI, you can add this server in several ways:
 
-### Windows
-Location: `%APPDATA%\Claude\claude_desktop_config.json`
+#### Option 1: Command line
+```bash
+# Add the Fatebook MCP server
+claude mcp add fatebook --env FATEBOOK_API_KEY=your-api-key-here -- uv run python /path/to/fatebook-mcp/main.py
 
-### Configuration
+# Verify it was added successfully
+claude mcp list
+```
 
+#### Option 2: Import from Claude Desktop
+If you already have this configured in Claude Desktop, you can import those settings:
+```bash
+claude mcp add-from-claude-desktop
+```
+
+#### Option 3: Project-specific configuration
+Create a `.mcp.json` file in your project:
 ```json
 {
   "mcpServers": {
     "fatebook": {
-      "command": "path/to/uv",
+      "command": "uv",
       "args": [
         "run",
         "python",
@@ -81,7 +92,37 @@ Location: `%APPDATA%\Claude\claude_desktop_config.json`
 }
 ```
 
-Replace `/path/to/fatebook-mcp` with the actual path to where you cloned this repository and path/to/uv with the output of `which uv`.
+### Claude Desktop
+
+Add the following to your Claude Desktop configuration file:
+
+#### macOS
+Location: `~/Library/Application Support/Claude/claude_desktop_config.json`
+
+#### Windows
+Location: `%APPDATA%\Claude\claude_desktop_config.json`
+
+#### Configuration
+
+```json
+{
+  "mcpServers": {
+    "fatebook": {
+      "command": "uv",
+      "args": [
+        "run",
+        "python",
+        "/path/to/fatebook-mcp/main.py"
+      ],
+      "env": {
+        "FATEBOOK_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+}
+```
+
+Replace `/path/to/fatebook-mcp` with the actual path to where you cloned this repository.
 
 ## Development & Testing
 
