@@ -65,7 +65,11 @@ async def create_stdio_mcp_client(
     Args:
         include_tools: If True, yields (session, available_tools), otherwise just session
     """
-    server_params = StdioServerParameters(command="uv", args=["run", "python", "main.py"], env=None)
+    server_params = StdioServerParameters(
+        command="uv",
+        args=["run", "python", "main.py"],
+        env={"FATEBOOK_API_KEY": os.getenv("FATEBOOK_API_KEY")},
+    )
 
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
