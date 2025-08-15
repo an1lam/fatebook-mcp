@@ -1,3 +1,4 @@
+from typing import Any
 import os
 import httpx
 from mcp.server.fastmcp import FastMCP
@@ -8,6 +9,10 @@ from models import Question, QuestionsResponse, QuestionsList, QuestionReference
 load_dotenv()
 
 mcp = FastMCP("Fatebook MCP Server")
+
+
+# Type alias for httpx params to handle mypy type checking
+ParamsType = dict[str, str | int | float | bool | None]
 
 
 @mcp.tool()
@@ -22,7 +27,7 @@ async def list_questions(
     detailed: bool = False,
 ) -> QuestionsList:
     """List Fatebook questions with optional filtering
-    
+
     Returns a list of Question objects. By default returns core fields only.
     Set detailed=True to include all available fields (forecasts, comments, etc.).
     """
@@ -34,9 +39,11 @@ async def list_questions(
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
         await ctx.error("API key is required but not provided")
-        raise ValueError("API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)")
+        raise ValueError(
+            "API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
+        )
 
-    params = {"apiKey": api_key}
+    params: dict[str, Any] = {"apiKey": api_key}
 
     # Add optional parameters
     if resolved:
@@ -53,21 +60,17 @@ async def list_questions(
 
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.get(
-                "https://fatebook.io/api/v0/getQuestions", params=params
-            )
+            response = await client.get("https://fatebook.io/api/v0/getQuestions", params=params)
             response.raise_for_status()
 
             data = response.json()
-            
+
             # Parse response using Pydantic model
             questions_response = QuestionsResponse(**data)
             questions = questions_response.items
-            
-            await ctx.info(
-                f"Successfully retrieved {len(questions)} questions"
-            )
-            
+
+            await ctx.info(f"Successfully retrieved {len(questions)} questions")
+
             # Return as QuestionsList with 'result' field to match MCP schema expectations
             return QuestionsList(result=questions)
 
@@ -82,36 +85,36 @@ async def list_questions(
 @mcp.tool()
 async def get_question(ctx: Context, questionId: str, apiKey: str = "") -> Question:
     """Get detailed information about a specific Fatebook question
-    
+
     Returns a structured Question object with all available fields.
     """
-    
+
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
         await ctx.error("API key is required but not provided")
-        raise ValueError("API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)")
-    
-    params = {"apiKey": api_key, "questionId": questionId}
-    
+        raise ValueError(
+            "API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
+        )
+
+    params: ParamsType = {"apiKey": api_key, "questionId": questionId}
+
     await ctx.debug(f"Making API request for question {questionId}")
-    
+
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.get(
-                "https://fatebook.io/api/v0/getQuestion", params=params
-            )
+            response = await client.get("https://fatebook.io/api/v0/getQuestion", params=params)
             response.raise_for_status()
-            
+
             question_data = response.json()
             await ctx.info(f"Successfully retrieved question {questionId}")
-            
+
             # Add the ID to the data since the API doesn't return it
-            question_data['id'] = questionId
-            
+            question_data["id"] = questionId
+
             # Parse as Question model and return it
             question = Question(**question_data)
             return question
-    
+
     except httpx.HTTPError as e:
         await ctx.error(f"HTTP error occurred: {e}")
         raise
@@ -128,7 +131,9 @@ async def resolve_question(
 
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
-        raise ValueError("API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)")
+        raise ValueError(
+            "API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
+        )
 
     # Validate resolution parameter
     valid_resolutions = ["YES", "NO", "AMBIGUOUS"]
@@ -144,9 +149,7 @@ async def resolve_question(
 
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://fatebook.io/api/v0/resolveQuestion", json=data
-            )
+            response = await client.post("https://fatebook.io/api/v0/resolveQuestion", json=data)
             response.raise_for_status()
             return True
 
@@ -172,13 +175,15 @@ async def create_question(
 
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
-        raise ValueError("API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)")
+        raise ValueError(
+            "API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
+        )
 
     # Validate forecast parameter
     if not 0 <= forecast <= 1:
         raise ValueError("forecast must be between 0 and 1")
 
-    params = {
+    params: ParamsType = {
         "apiKey": api_key,
         "title": title,
         "resolveBy": resolveBy,
@@ -199,9 +204,7 @@ async def create_question(
 
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://fatebook.io/api/v0/createQuestion", params=params
-            )
+            response = await client.post("https://fatebook.io/api/v0/createQuestion", params=params)
             response.raise_for_status()
 
             # Parse the URL from the response to extract title and ID
@@ -209,7 +212,7 @@ async def create_question(
             if url.startswith("https://fatebook.io/q/"):
                 # Extract the slug part after /q/
                 slug = url.replace("https://fatebook.io/q/", "")
-                
+
                 # Split on the last occurrence of -- to separate title and ID
                 if "--" in slug:
                     url_title, question_id = slug.rsplit("--", 1)
@@ -233,7 +236,9 @@ async def add_forecast(
 
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
-        raise ValueError("API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)")
+        raise ValueError(
+            "API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
+        )
 
     # Validate forecast parameter
     if not 0 <= forecast <= 1:
@@ -247,9 +252,7 @@ async def add_forecast(
 
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://fatebook.io/api/v0/addForecast", json=data
-            )
+            response = await client.post("https://fatebook.io/api/v0/addForecast", json=data)
             response.raise_for_status()
             return True
 
@@ -265,15 +268,15 @@ async def add_comment(questionId: str, comment: str, apiKey: str = "") -> bool:
 
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
-        raise ValueError("API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)")
+        raise ValueError(
+            "API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
+        )
 
     data = {"questionId": questionId, "comment": comment, "apiKey": api_key}
 
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://fatebook.io/api/v0/addComment", json=data
-            )
+            response = await client.post("https://fatebook.io/api/v0/addComment", json=data)
             response.raise_for_status()
             return True
 
@@ -289,7 +292,9 @@ async def delete_question(questionId: str, apiKey: str = "") -> bool:
 
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
-        raise ValueError("API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)")
+        raise ValueError(
+            "API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
+        )
 
     params = {"questionId": questionId, "apiKey": api_key}
 
@@ -319,7 +324,9 @@ async def edit_question(
 
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
-        raise ValueError("API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)")
+        raise ValueError(
+            "API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
+        )
 
     data = {"questionId": questionId, "apiKey": api_key}
 
@@ -333,9 +340,7 @@ async def edit_question(
 
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.patch(
-                "https://fatebook.io/api/v0/editQuestion", json=data
-            )
+            response = await client.patch("https://fatebook.io/api/v0/editQuestion", json=data)
             response.raise_for_status()
             return True
 
@@ -353,11 +358,9 @@ async def count_forecasts(userId: str) -> int:
 
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.get(
-                "https://fatebook.io/api/v0/countForecasts", params=params
-            )
+            response = await client.get("https://fatebook.io/api/v0/countForecasts", params=params)
             response.raise_for_status()
-            
+
             # Parse JSON response and return the count
             data = response.json()
             return int(data.get("count", 0))
