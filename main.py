@@ -124,6 +124,26 @@ async def get_question(ctx: Context, questionId: str, apiKey: str = "") -> Quest
         raise
 
 
+@mcp.resource("question://{question_id}")
+async def get_question_resource(question_id: str) -> Question:
+    """Get detailed information about a specific Fatebook question as a resource
+
+    Provides read-only access to question data for loading into LLM context.
+    """
+    api_key = os.getenv("FATEBOOK_API_KEY")
+    if not api_key:
+        raise ValueError("API key is required (set FATEBOOK_API_KEY environment variable)")
+    params: ParamsType = {"apiKey": api_key, "questionId": question_id}
+    async with httpx.AsyncClient() as client:
+        response = await client.get("https://fatebook.io/api/v0/getQuestion", params=params)
+        response.raise_for_status()
+        question_data = response.json()
+        # Add the ID to the data since the API doesn't return it
+        question_data["id"] = question_id
+        question = Question(**question_data)
+        return question
+
+
 @mcp.tool()
 async def resolve_question(
     questionId: str, resolution: str, questionType: str, apiKey: str = ""

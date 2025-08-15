@@ -65,7 +65,15 @@ async def create_stdio_mcp_client(
     Args:
         include_tools: If True, yields (session, available_tools), otherwise just session
     """
-    server_params = StdioServerParameters(command="uv", args=["run", "python", "main.py"], env=None)
+    api_key = os.getenv("FATEBOOK_API_KEY")
+    if not api_key:
+        raise ValueError("FATEBOOK_API_KEY environment variable is required for testing")
+
+    server_params = StdioServerParameters(
+        command="uv",
+        args=["run", "python", "main.py"],
+        env={"FATEBOOK_API_KEY": api_key},
+    )
 
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
@@ -474,3 +482,77 @@ async def test_create_and_resolve_question():
 
         assert resolve_content is not None, "No content in resolve_question response"
         assert resolve_content.lower() == "true", f"Question resolution failed: {resolve_content}"
+
+
+@pytest.mark.anyio
+async def test_list_resource_templates():
+    """Test listing available resource templates."""
+    async with create_stdio_mcp_client() as (session, _):
+        # Get available resource templates
+        templates_response = await session.list_resource_templates()
+        available_templates = {
+            str(template.uriTemplate) for template in templates_response.resourceTemplates
+        }
+
+        # Check for our question resource template
+        expected_templates = {"question://{question_id}"}
+
+        for template_uri in expected_templates:
+            assert template_uri in available_templates, f"Missing resource template: {template_uri}"
+
+        assert len(available_templates) >= 1, "Should have at least 1 resource template available"
+
+
+@pytest.mark.anyio
+async def test_read_question_resource():
+    """Test reading a specific question as a resource."""
+    from datetime import datetime, timedelta
+
+    async with create_stdio_mcp_client(include_tools=True) as (
+        session,
+        available_tools,
+    ):
+        # First create a test question to read as a resource
+        resolve_date = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
+
+        create_content = await call_tool_and_check_content(
+            session,
+            "create_question",
+            title="Resource Template Test Question",
+            resolveBy=resolve_date,
+            forecast=0.65,
+            apiKey=TEST_API_KEY,
+            tags=["resource", "template", "test"],
+        )
+
+        assert create_content is not None, "No content in create_question response"
+
+        # Parse JSON response to get question ID
+        create_data = json.loads(create_content)
+        question_id = create_data.get("id")
+        assert question_id is not None, "No question ID in response"
+
+        # Now read the question as a resource using the template
+        resource_uri = f"question://{question_id}"
+        resource_result = await session.read_resource(resource_uri)
+
+        assert resource_result.contents is not None, "No contents in resource response"
+        assert len(resource_result.contents) > 0, "Resource response has no content items"
+
+        # Parse the resource content
+        content_item = resource_result.contents[0]
+        # Resource content comes as TextResourceContents, not TextContent
+        assert hasattr(content_item, "text"), "Resource content should have text attribute"
+
+        question_data = json.loads(content_item.text)
+
+        # Verify it's the same question
+        assert question_data["id"] == question_id
+        assert question_data["title"] == "Resource Template Test Question"
+        assert question_data["type"] == "BINARY"
+
+        # Clean up
+        delete_content = await call_tool_and_check_content(
+            session, "delete_question", questionId=question_id, apiKey=TEST_API_KEY
+        )
+        assert delete_content.lower() == "true"
