@@ -21,3 +21,26 @@ testpaths = ["."]
 python_files = "test_*.py"
 python_functions = "test_*"
 markers = ["integration: marks tests as integration tests"]
+
+[tool.ruff]
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".venv",
+    ".vscode",
+    "__pycache__",
+    "__pypackages__",
+    ".venv",
+]
+
+line-length = 100
+indent-width = 4

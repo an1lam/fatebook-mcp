@@ -94,12 +94,8 @@ class Question(BaseModel):
     forecasts: Optional[List[Forecast]] = Field(
         default=None, description="List of forecasts on this question"
     )
-    tags: Optional[List[Tag]] = Field(
-        default=None, description="Tags associated with the question"
-    )
-    comments: Optional[List[Comment]] = Field(
-        default=None, description="Comments on the question"
-    )
+    tags: Optional[List[Tag]] = Field(default=None, description="Tags associated with the question")
+    comments: Optional[List[Comment]] = Field(default=None, description="Comments on the question")
 
     # Visibility settings (typically in detailed view)
     shared_publicly: Optional[bool] = Field(None, alias="sharedPublicly")
@@ -133,7 +129,9 @@ class Question(BaseModel):
         """Format for list display"""
         tags_text = ", ".join([tag.name for tag in self.tags]) if self.tags else ""
         tags_display = f" | Tags: {tags_text}" if tags_text else ""
-        forecast_text = f" | {self.forecast_count} forecast{'s' if self.forecast_count != 1 else ''}"
+        forecast_text = (
+            f" | {self.forecast_count} forecast{'s' if self.forecast_count != 1 else ''}"
+        )
 
         id_text = f" | ID: {self.id}" if self.id else ""
         return f"**{self.title}**\n{self.status_text}{id_text}{forecast_text}{tags_display}"
