@@ -13,7 +13,7 @@ import pytest
 from dotenv import load_dotenv
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
-from mcp.types import TextContent, Tool
+from mcp.types import TextContent
 from typing_extensions import AsyncGenerator
 
 load_dotenv()
@@ -59,7 +59,7 @@ async def call_tool_and_check_content(
 @asynccontextmanager
 async def create_stdio_mcp_client(
     include_tools: bool = False,
-) -> AsyncGenerator[ClientSession, dict[str, Tool] | None]:
+) -> AsyncGenerator[tuple[ClientSession, set[str] | None], None]:
     """Helper function to create an MCP client session connected via stdio - similar to MCP SDK pattern.
 
     Args:
