@@ -13,7 +13,7 @@ import pytest
 from dotenv import load_dotenv
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
-from mcp.types import TextContent, Tool
+from mcp.types import TextContent
 from typing_extensions import AsyncGenerator
 
 load_dotenv()
@@ -65,7 +65,9 @@ async def create_stdio_mcp_client(
     Args:
         include_tools: If True, yields (session, available_tools), otherwise just session
     """
-    server_params = StdioServerParameters(command="uv", args=["run", "python", "main.py"], env=None)
+    server_params = StdioServerParameters(
+        command="uv", args=["run", "python", "main.py"], env=None
+    )
 
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
@@ -97,7 +99,9 @@ async def test_count_forecasts():
         assert count_content is not None, "No content in count_forecasts response"
 
         count_value = int(count_content)
-        assert count_value >= 0, f"Expected non-negative forecast count, got: {count_value}"
+        assert count_value >= 0, (
+            f"Expected non-negative forecast count, got: {count_value}"
+        )
 
 
 @pytest.mark.anyio
@@ -167,7 +171,9 @@ async def test_create_edit_and_resolve_question():
         )
 
         assert edit_content is not None, "No content in edit_question response"
-        assert edit_content.lower() == "true", f"Question editing failed: {edit_content}"
+        assert edit_content.lower() == "true", (
+            f"Question editing failed: {edit_content}"
+        )
 
         # Step 3: Resolve the question
         resolve_content = await call_tool_and_check_content(
@@ -180,7 +186,9 @@ async def test_create_edit_and_resolve_question():
         )
 
         assert resolve_content is not None, "No content in resolve_question response"
-        assert resolve_content.lower() == "true", f"Question resolution failed: {resolve_content}"
+        assert resolve_content.lower() == "true", (
+            f"Question resolution failed: {resolve_content}"
+        )
 
 
 @pytest.mark.anyio
@@ -227,7 +235,9 @@ async def test_create_and_delete_question():
         )
 
         assert delete_content is not None, "No content in delete_question response"
-        assert delete_content.lower() == "true", f"Question deletion failed: {delete_content}"
+        assert delete_content.lower() == "true", (
+            f"Question deletion failed: {delete_content}"
+        )
 
 
 @pytest.mark.anyio
@@ -278,7 +288,9 @@ async def test_create_and_add_comment_question():
         )
 
         assert comment_content is not None, "No content in add_comment response"
-        assert comment_content.lower() == "true", f"Adding comment failed: {comment_content}"
+        assert comment_content.lower() == "true", (
+            f"Adding comment failed: {comment_content}"
+        )
 
         # Step 3: Resolve the question
         resolve_content = await call_tool_and_check_content(
@@ -291,7 +303,9 @@ async def test_create_and_add_comment_question():
         )
 
         assert resolve_content is not None, "No content in resolve_question response"
-        assert resolve_content.lower() == "true", f"Question resolution failed: {resolve_content}"
+        assert resolve_content.lower() == "true", (
+            f"Question resolution failed: {resolve_content}"
+        )
 
 
 @pytest.mark.anyio
@@ -342,7 +356,9 @@ async def test_create_and_add_forecast_question():
         )
 
         assert forecast_content is not None, "No content in add_forecast response"
-        assert forecast_content.lower() == "true", f"Adding forecast failed: {forecast_content}"
+        assert forecast_content.lower() == "true", (
+            f"Adding forecast failed: {forecast_content}"
+        )
 
         # Step 3: Resolve the question
         resolve_content = await call_tool_and_check_content(
@@ -355,7 +371,9 @@ async def test_create_and_add_forecast_question():
         )
 
         assert resolve_content is not None, "No content in resolve_question response"
-        assert resolve_content.lower() == "true", f"Question resolution failed: {resolve_content}"
+        assert resolve_content.lower() == "true", (
+            f"Question resolution failed: {resolve_content}"
+        )
 
 
 @pytest.mark.anyio
@@ -394,7 +412,9 @@ async def test_structured_get_question():
         title = create_data.get("title")
 
         assert question_id is not None, "No question ID in response"
-        assert title == "Test Structured Response Question", f"Unexpected title: {title}"
+        assert title == "Test Structured Response Question", (
+            f"Unexpected title: {title}"
+        )
 
         # Step 2: Test get_question with structured response
         get_content = await call_tool_and_check_content(
@@ -421,7 +441,9 @@ async def test_structured_get_question():
         delete_content = await call_tool_and_check_content(
             session, "delete_question", questionId=question_id, apiKey=TEST_API_KEY
         )
-        assert delete_content.lower() == "true", f"Question deletion failed: {delete_content}"
+        assert delete_content.lower() == "true", (
+            f"Question deletion failed: {delete_content}"
+        )
 
 
 @pytest.mark.anyio
@@ -473,4 +495,6 @@ async def test_create_and_resolve_question():
         )
 
         assert resolve_content is not None, "No content in resolve_question response"
-        assert resolve_content.lower() == "true", f"Question resolution failed: {resolve_content}"
+        assert resolve_content.lower() == "true", (
+            f"Question resolution failed: {resolve_content}"
+        )
