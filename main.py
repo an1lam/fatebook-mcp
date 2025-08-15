@@ -139,29 +139,17 @@ async def get_question_resource(question_id: str) -> Question:
         raise ValueError(
             "API key is required (set FATEBOOK_API_KEY environment variable)"
         )
-
     params: ParamsType = {"apiKey": api_key, "questionId": question_id}
-
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                "https://fatebook.io/api/v0/getQuestion", params=params
-            )
-            response.raise_for_status()
-
-            question_data = response.json()
-
-            # Add the ID to the data since the API doesn't return it
-            question_data["id"] = question_id
-
-            # Parse as Question model and return it
-            question = Question(**question_data)
-            return question
-
-    except httpx.HTTPError:
-        raise
-    except Exception:
-        raise
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            "https://fatebook.io/api/v0/getQuestion", params=params
+        )
+        response.raise_for_status()
+        question_data = response.json()
+        # Add the ID to the data since the API doesn't return it
+        question_data["id"] = question_id
+        question = Question(**question_data)
+        return question
 
 
 @mcp.tool()
