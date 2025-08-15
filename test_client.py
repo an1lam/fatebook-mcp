@@ -65,10 +65,14 @@ async def create_stdio_mcp_client(
     Args:
         include_tools: If True, yields (session, available_tools), otherwise just session
     """
+    api_key = os.getenv("FATEBOOK_API_KEY")
+    if not api_key:
+        raise ValueError("FATEBOOK_API_KEY environment variable is required for testing")
+
     server_params = StdioServerParameters(
         command="uv",
         args=["run", "python", "main.py"],
-        env={"FATEBOOK_API_KEY": os.getenv("FATEBOOK_API_KEY")},
+        env={"FATEBOOK_API_KEY": api_key},
     )
 
     async with stdio_client(server_params) as (read, write):
