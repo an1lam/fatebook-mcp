@@ -257,7 +257,7 @@ FATEBOOK_API_KEY=your-api-key-here
 Run the integration tests to verify your setup:
 
 ```bash
-uv run test_client.py
+uv run pytest test_client.py
 ```
 
 This will test all available endpoints and confirm the server is working correctly.
