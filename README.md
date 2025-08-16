@@ -1,7 +1,6 @@
 # Fatebook MCP Server
 
-[![PyPI version](https://badge.fury.io/py/fatebook-mcp.svg)](https://badge.fury.io/py/fatebook-mcp)
-[![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
+[![PyPI version](https://badge.fury.io/py/fatebook-mcp.svg)](https://badge.fury.io/py/fatebook-mcp) [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/) [![CI](https://github.com/an1lam/fatebook-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/an1lam/fatebook-mcp/actions/workflows/ci.yml)
 
 A Model Context Protocol (MCP) server that provides integration with [Fatebook](https://fatebook.io), a prediction tracking platform. This server allows AI assistants like Claude to create, manage, and track predictions directly through MCP.
 
@@ -20,6 +19,16 @@ A Model Context Protocol (MCP) server that provides integration with [Fatebook](
 - **Edit Questions**: Update question titles, resolve dates, and notes
 - **Delete Questions**: Remove questions you no longer need
 - **Count Forecasts**: Track your forecasting activity
+
+## Testing and Compatibility
+
+This MCP server has been tested on Mac OS X 14.5 with:
+
+- Claude Code (CLI)
+- Claude Desktop
+- MCP Inspector
+
+As far as I know, it doesn't violate any MCP protocol requirements but given that MCP is an evolving protocol, certain features or MCP clients may not be fully supported. If you encounter issues with other MCP implementations, please report them as GitHub issues.
 
 ## Installation
 
