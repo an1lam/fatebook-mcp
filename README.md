@@ -119,6 +119,23 @@ Location: `%APPDATA%\Claude\claude_desktop_config.json`
 }
 ```
 
+**Note**: If Claude Desktop can't find `uvx`, use the full path instead:
+```json
+{
+  "mcpServers": {
+    "fatebook": {
+      "command": "/Users/yourusername/.local/bin/uvx",
+      "args": ["fatebook-mcp"],
+      "env": {
+        "FATEBOOK_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+}
+```
+
+Find your uvx path with: `which uvx`
+
 #### Option 2: Development/Source Installation
 
 ```json
@@ -176,6 +193,21 @@ Create a `.mcp.json` file in your project:
   "mcpServers": {
     "fatebook": {
       "command": "uvx",
+      "args": ["fatebook-mcp"],
+      "env": {
+        "FATEBOOK_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+}
+```
+
+If `uvx` is not found, use the full path (find with `which uvx`):
+```json
+{
+  "mcpServers": {
+    "fatebook": {
+      "command": "/Users/yourusername/.local/bin/uvx",
       "args": ["fatebook-mcp"],
       "env": {
         "FATEBOOK_API_KEY": "your-api-key-here"
@@ -257,6 +289,24 @@ This MCP server has been tested with:
 As MCP is an evolving protocol, certain features or MCP clients may not be fully supported. If you encounter issues with other MCP implementations, please report them as GitHub issues.
 
 ## Troubleshooting
+
+### uvx Command Not Found
+
+If Claude Desktop shows "command not found" errors for `uvx`:
+
+1. **Find your uvx path**:
+   ```bash
+   which uvx
+   ```
+
+2. **Use the full path** in your configuration:
+   ```json
+   "command": "/Users/yourusername/.local/bin/uvx"
+   ```
+
+3. **Common uvx locations**:
+   - macOS: `/Users/yourusername/.local/bin/uvx`
+   - Linux: `/home/yourusername/.local/bin/uvx`
 
 ### API Key Issues
 
