@@ -1,5 +1,7 @@
 # Fatebook MCP Server
 
+[![CI](https://github.com/an1lam/fatebook-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/an1lam/fatebook-mcp/actions/workflows/ci.yml)
+
 A Model Context Protocol (MCP) server that provides integration with [Fatebook](https://fatebook.io), a prediction tracking platform. This server allows AI assistants like Claude to create, manage, and track predictions directly through MCP.
 
 <a href="https://glama.ai/mcp/servers/@an1lam/fatebook-mcp">
