@@ -399,7 +399,7 @@ def main() -> None:
     print("Starting Fatebook MCP Server...", file=sys.stderr)
     print("Server will communicate via stdin/stdout using MCP protocol", file=sys.stderr)
     print("Press Ctrl+C to stop the server", file=sys.stderr)
-    
+
     mcp.run()
 
 

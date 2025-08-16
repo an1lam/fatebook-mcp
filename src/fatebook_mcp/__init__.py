@@ -23,11 +23,11 @@ from .models import (
 
 __all__ = [
     "Question",
-    "QuestionReference", 
+    "QuestionReference",
     "QuestionsList",
     "QuestionsResponse",
     "User",
-    "Tag", 
+    "Tag",
     "Forecast",
     "Comment",
 ]
