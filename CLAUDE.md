@@ -19,6 +19,9 @@ uv sync
 # Run the main script
 uv run python main.py
 
+# Run tests
+uv run pytest test_client.py
+
 # Add a new dependency
 uv add <package-name>
 

@@ -1,9 +1,17 @@
-from pydantic import BaseModel, Field, field_validator
-from typing import Optional, List, Literal, Union
 from datetime import datetime
+from typing import Any, Dict, List, Literal, Optional, Union
+
+from pydantic import BaseModel, Field, field_validator
 
 
-class User(BaseModel):
+class SlimBaseModel(BaseModel):
+    """Base model that excludes None fields by default to save context tokens"""
+
+    def model_dump(self, *, exclude_none: bool = True, **kwargs) -> Dict[str, Any]:
+        return super().model_dump(exclude_none=exclude_none, **kwargs)
+
+
+class User(SlimBaseModel):
     """User information for forecasts and comments"""
 
     id: Optional[Union[str, int]] = None
@@ -16,7 +24,7 @@ class User(BaseModel):
         return str(v) if v is not None else v
 
 
-class Tag(BaseModel):
+class Tag(SlimBaseModel):
     """Tag model for question categorization"""
 
     id: Optional[Union[str, int]] = None
@@ -29,7 +37,7 @@ class Tag(BaseModel):
         return str(v) if v is not None else v
 
 
-class Forecast(BaseModel):
+class Forecast(SlimBaseModel):
     """Forecast made on a question"""
 
     id: Optional[Union[str, int]] = None
@@ -51,7 +59,7 @@ class Forecast(BaseModel):
         by_alias = True  # Use aliases when serializing
 
 
-class Comment(BaseModel):
+class Comment(SlimBaseModel):
     """Comment on a question"""
 
     id: Optional[Union[str, int]] = None
@@ -70,7 +78,7 @@ class Comment(BaseModel):
         by_alias = True  # Use aliases when serializing
 
 
-class Question(BaseModel):
+class Question(SlimBaseModel):
     """Fatebook question model with optional fields for detailed responses"""
 
     # Core fields (id is optional since getQuestion doesn't return it)
@@ -184,14 +192,14 @@ class Question(BaseModel):
         return "\n".join(lines)
 
 
-class QuestionsResponse(BaseModel):
+class QuestionsResponse(SlimBaseModel):
     """Response from getQuestions endpoint"""
 
     items: List[Question]
     cursor: Optional[str] = None
 
 
-class QuestionsList(BaseModel):
+class QuestionsList(SlimBaseModel):
     """List of questions for MCP responses - matches expected MCP schema"""
 
     result: List[Question]
@@ -201,7 +209,7 @@ class QuestionsList(BaseModel):
         by_alias = True
 
 
-class QuestionReference(BaseModel):
+class QuestionReference(SlimBaseModel):
     """Minimal question reference with id and title"""
 
     id: str
