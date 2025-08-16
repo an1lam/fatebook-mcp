@@ -110,24 +110,7 @@ Location: `%APPDATA%\Claude\claude_desktop_config.json`
 }
 ```
 
-#### Option 2: Using Installed Package
-
-If you've installed the package with pip or uv:
-
-```json
-{
-  "mcpServers": {
-    "fatebook": {
-      "command": "fatebook-mcp",
-      "env": {
-        "FATEBOOK_API_KEY": "your-api-key-here"
-      }
-    }
-  }
-}
-```
-
-#### Option 3: Development/Source Installation
+#### Option 2: Development/Source Installation
 
 ```json
 {
@@ -135,9 +118,12 @@ If you've installed the package with pip or uv:
     "fatebook": {
       "command": "uv",
       "args": [
+        "--directory",
+        "/path/to/fatebook-mcp",
         "run",
         "python",
-        "/path/to/fatebook-mcp/src/fatebook_mcp/__main__.py"
+        "-m",
+        "fatebook_mcp"
       ],
       "env": {
         "FATEBOOK_API_KEY": "your-api-key-here"
@@ -163,19 +149,7 @@ claude mcp add fatebook --env FATEBOOK_API_KEY=your-api-key-here -- uvx fatebook
 claude mcp list
 ```
 
-#### Option 2: Using Installed Package
-
-If you've installed the package globally:
-
-```bash
-# Add the Fatebook MCP server using the console script
-claude mcp add fatebook --env FATEBOOK_API_KEY=your-api-key-here -- fatebook-mcp
-
-# Verify it was added successfully
-claude mcp list
-```
-
-#### Option 3: Import from Claude Desktop
+#### Option 2: Import from Claude Desktop
 
 If you already have this configured in Claude Desktop, you can import those settings:
 
@@ -183,7 +157,7 @@ If you already have this configured in Claude Desktop, you can import those sett
 claude mcp add-from-claude-desktop
 ```
 
-#### Option 4: Project-specific configuration
+#### Option 3: Project-specific configuration
 
 Create a `.mcp.json` file in your project:
 
@@ -208,7 +182,7 @@ Create a `.mcp.json` file in your project:
   "mcpServers": {
     "fatebook": {
       "command": "uv",
-      "args": ["run", "python", "/path/to/fatebook-mcp/src/fatebook_mcp/__main__.py"],
+      "args": ["--directory", "/path/to/fatebook-mcp", "run", "python", "-m", "fatebook_mcp"],
       "env": {
         "FATEBOOK_API_KEY": "your-api-key-here"
       }
@@ -256,14 +230,9 @@ This will test all available endpoints and confirm the server is working correct
 uvx --from . fatebook-mcp
 ```
 
-**Using uv run:**
+**Using uv run with module:**
 ```bash
 uv run python -m fatebook_mcp
-```
-
-**From source during development:**
-```bash
-uv run python src/fatebook_mcp/__main__.py
 ```
 
 The server will start and wait for MCP client connections.
