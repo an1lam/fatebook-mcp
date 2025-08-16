@@ -9,10 +9,14 @@ description = "Model Context Protocol server for Fatebook prediction tracking"
 readme = "README.md"
 requires-python = ">=3.13"
 license = "MIT"
-authors = [
-    { name = "Stephen Malina", email = "stephen.malina@gmail.com" },
+authors = [{ name = "Stephen Malina", email = "stephen.malina@gmail.com" }]
+keywords = [
+    "mcp",
+    "fatebook",
+    "predictions",
+    "forecasting",
+    "model-context-protocol",
 ]
-keywords = ["mcp", "fatebook", "predictions", "forecasting", "model-context-protocol"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -77,6 +81,10 @@ line-length = 100
 indent-width = 4
 
 [dependency-groups]
-dev = [
-    "hatchling>=1.27.0",
-]
+dev = ["hatchling>=1.27.0"]
+
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true
