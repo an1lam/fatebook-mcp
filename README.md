@@ -164,6 +164,16 @@ uv run python main.py
 
 The server will start and wait for MCP client connections.
 
+## Testing and Compatibility
+
+This MCP server has been tested with:
+
+- Claude Code (CLI)
+- Claude Desktop
+- MCP Inspector
+
+As MCP is an evolving protocol, certain features or MCP clients may not be fully supported. If you encounter issues with other MCP implementations, please report them as GitHub issues.
+
 ## Troubleshooting
 
 ### API Key Issues
