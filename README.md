@@ -28,7 +28,7 @@ A Model Context Protocol (MCP) server that provides integration with [Fatebook](
 2. Navigate to [API Setup](https://fatebook.io/api-setup)
 3. Generate and copy your API key
 
-### Development Setup
+### Setup
 
 1. Clone the repository:
 
@@ -43,34 +43,65 @@ cd fatebook-mcp
 uv sync
 ```
 
-3. Set up your API key (you can also provide it per request but you'll need to include it in the chat):
 
-```bash
-export FATEBOOK_API_KEY="your-api-key-here"
-```
-
-Or create a `.env` file:
-
-```
-FATEBOOK_API_KEY=your-api-key-here
-```
-
-## Usage with Claude Desktop and Claude Code
+## Usage with Claude Desktop and [Claude Code](https://www.anthropic.com/claude-code)
 
 ### Claude Desktop
 
 Add the following to your Claude Desktop configuration file:
 
 #### macOS
-
 Location: `~/Library/Application Support/Claude/claude_desktop_config.json`
 
 #### Windows
-
 Location: `%APPDATA%\Claude\claude_desktop_config.json`
 
 #### Configuration
 
+```json
+{
+  "mcpServers": {
+    "fatebook": {
+      "command": "uv",
+      "args": [
+        "run",
+        "python",
+        "/path/to/fatebook-mcp/main.py"
+      ],
+      "env": {
+        "FATEBOOK_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+}
+```
+
+Replace `/path/to/fatebook-mcp` with the actual path to where you cloned this repository.
+
+### Claude Code (CLI)
+
+For Claude Code, you can add this server in several ways:
+
+#### Option 1: Command line
+
+```bash
+# Add the Fatebook MCP server
+claude mcp add fatebook --env FATEBOOK_API_KEY=your-api-key-here -- uv run python /path/to/fatebook-mcp/main.py
+
+# Verify it was added successfully
+claude mcp list
+```
+
+#### Option 2: Import from Claude Desktop
+
+If you already have this configured in Claude Desktop, you can import those settings:
+
+```bash
+claude mcp add-from-claude-desktop
+```
+
+#### Option 3: Project-specific configuration
+Create a `.mcp.json` file in your project:
 ```json
 {
   "mcpServers": {
@@ -103,48 +134,22 @@ Replace `/path/to/fatebook-mcp` with the actual path to where you cloned this re
 ```
 
 
-### Claude Code (CLI)
-
-For Claude Code CLI, you can add this server in several ways:
-
-#### Option 1: Command line
-
-```bash
-# Add the Fatebook MCP server
-claude mcp add fatebook --env FATEBOOK_API_KEY=your-api-key-here -- uv run python /path/to/fatebook-mcp/main.py
-
-# Verify it was added successfully
-claude mcp list
-```
-
-#### Option 2: Import from Claude Desktop
-
-If you already have this configured in Claude Desktop, you can import those settings:
-
-```bash
-claude mcp add-from-claude-desktop
-```
-
-#### Option 3: Project-specific configuration
-
-Create a `.mcp.json` file in your project:
-
-```json
-{
-  "mcpServers": {
-    "fatebook": {
-      "command": "uv",
-      "args": ["run", "python", "/path/to/fatebook-mcp/main.py"],
-      "env": {
-        "FATEBOOK_API_KEY": "your-api-key-here"
-      }
-    }
-  }
-}
-```
-
 
 ## Development & Testing
+### Additional setup
+Beyond the above setup that's needed even just to use the MCP server, running the MCP server as standalone and running its tests require fetching your API key and exporting it in your environment.
+
+You can do this either by exporting it directly:
+
+```bash
+export FATEBOOK_API_KEY="your-api-key-here"
+```
+
+Or create a `.env` file:
+
+```
+FATEBOOK_API_KEY=your-api-key-here
+```
 
 ### Running integration tests
 
@@ -155,6 +160,8 @@ uv run test_client.py
 ```
 
 This will test all available endpoints and confirm the server is working correctly.
+
+**Note**: These tests will only succeed if you have the right API key for the test user. If you're developing such that you need to run these tests, for now email me (the author).
 
 ### Running the Server Locally
 
