@@ -20,6 +20,16 @@ A Model Context Protocol (MCP) server that provides integration with [Fatebook](
 - **Delete Questions**: Remove questions you no longer need
 - **Count Forecasts**: Track your forecasting activity
 
+## Testing and Compatibility
+
+This MCP server has been tested on Mac OS X 14.5 with:
+
+- Claude Code (CLI)
+- Claude Desktop
+- MCP Inspector
+
+As far as I know, it doesn't violate any MCP protocol requirements but given that MCP is an evolving protocol, certain features or MCP clients may not be fully supported. If you encounter issues with other MCP implementations, please report them as GitHub issues.
+
 ## Installation
 
 ### Prerequisites
