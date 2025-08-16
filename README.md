@@ -1,5 +1,8 @@
 # Fatebook MCP Server
 
+[![PyPI version](https://badge.fury.io/py/fatebook-mcp.svg)](https://badge.fury.io/py/fatebook-mcp)
+[![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
+
 A Model Context Protocol (MCP) server that provides integration with [Fatebook](https://fatebook.io), a prediction tracking platform. This server allows AI assistants like Claude to create, manage, and track predictions directly through MCP.
 
 <a href="https://glama.ai/mcp/servers/@an1lam/fatebook-mcp">
@@ -23,7 +26,7 @@ A Model Context Protocol (MCP) server that provides integration with [Fatebook](
 ### Prerequisites
 
 - Python 3.13 or higher
-- [uv](https://github.com/astral-sh/uv) (Python package manager)
+- [uv](https://github.com/astral-sh/uv) (recommended) or pip
 - A Fatebook account and API key
 
 ### Getting your Fatebook API Key
@@ -32,12 +35,28 @@ A Model Context Protocol (MCP) server that provides integration with [Fatebook](
 2. Navigate to [API Setup](https://fatebook.io/api-setup)
 3. Generate and copy your API key
 
-### Setup
+### Option 1: Install from PyPI (Recommended)
+
+Install the package directly from PyPI:
+
+```bash
+pip install fatebook-mcp
+```
+
+Or using uv:
+
+```bash
+uv add fatebook-mcp
+```
+
+### Option 2: Install from Source
+
+For development or the latest features:
 
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/fatebook-mcp.git
+git clone https://github.com/an1lam/fatebook-mcp.git
 cd fatebook-mcp
 ```
 
@@ -47,12 +66,27 @@ cd fatebook-mcp
 uv sync
 ```
 
+## Quick Start
+
+### Running Directly with uvx
+
+The easiest way to test the server after installation is with uvx:
+
+```bash
+# Run directly from PyPI (no installation needed)
+uvx fatebook-mcp
+
+# Or run from local directory during development
+uvx --from . fatebook-mcp
+```
+
+The server will start and wait for MCP client connections via stdio. Use Ctrl+C to stop it.
 
 ## Usage with Claude Desktop and [Claude Code](https://www.anthropic.com/claude-code)
 
 ### Claude Desktop
 
-Add the following to your Claude Desktop configuration file:
+Add one of the following configurations to your Claude Desktop configuration file:
 
 #### macOS
 Location: `~/Library/Application Support/Claude/claude_desktop_config.json`
@@ -60,7 +94,40 @@ Location: `~/Library/Application Support/Claude/claude_desktop_config.json`
 #### Windows
 Location: `%APPDATA%\Claude\claude_desktop_config.json`
 
-#### Configuration
+#### Option 1: Using PyPI Package (Recommended)
+
+```json
+{
+  "mcpServers": {
+    "fatebook": {
+      "command": "uvx",
+      "args": ["fatebook-mcp"],
+      "env": {
+        "FATEBOOK_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+}
+```
+
+#### Option 2: Using Installed Package
+
+If you've installed the package with pip or uv:
+
+```json
+{
+  "mcpServers": {
+    "fatebook": {
+      "command": "fatebook-mcp",
+      "env": {
+        "FATEBOOK_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+}
+```
+
+#### Option 3: Development/Source Installation
 
 ```json
 {
@@ -70,7 +137,7 @@ Location: `%APPDATA%\Claude\claude_desktop_config.json`
       "args": [
         "run",
         "python",
-        "/path/to/fatebook-mcp/main.py"
+        "/path/to/fatebook-mcp/src/fatebook_mcp/__main__.py"
       ],
       "env": {
         "FATEBOOK_API_KEY": "your-api-key-here"
@@ -86,17 +153,29 @@ Replace `/path/to/fatebook-mcp` with the actual path to where you cloned this re
 
 For Claude Code, you can add this server in several ways:
 
-#### Option 1: Command line
+#### Option 1: Using PyPI Package (Recommended)
 
 ```bash
-# Add the Fatebook MCP server
-claude mcp add fatebook --env FATEBOOK_API_KEY=your-api-key-here -- uv run python /path/to/fatebook-mcp/main.py
+# Add the Fatebook MCP server using uvx
+claude mcp add fatebook --env FATEBOOK_API_KEY=your-api-key-here -- uvx fatebook-mcp
 
 # Verify it was added successfully
 claude mcp list
 ```
 
-#### Option 2: Import from Claude Desktop
+#### Option 2: Using Installed Package
+
+If you've installed the package globally:
+
+```bash
+# Add the Fatebook MCP server using the console script
+claude mcp add fatebook --env FATEBOOK_API_KEY=your-api-key-here -- fatebook-mcp
+
+# Verify it was added successfully
+claude mcp list
+```
+
+#### Option 3: Import from Claude Desktop
 
 If you already have this configured in Claude Desktop, you can import those settings:
 
@@ -104,14 +183,17 @@ If you already have this configured in Claude Desktop, you can import those sett
 claude mcp add-from-claude-desktop
 ```
 
-#### Option 3: Project-specific configuration
+#### Option 4: Project-specific configuration
+
 Create a `.mcp.json` file in your project:
+
+**Using PyPI package:**
 ```json
 {
   "mcpServers": {
     "fatebook": {
-      "command": "uv",
-      "args": ["run", "python", "/path/to/fatebook-mcp/main.py"],
+      "command": "uvx",
+      "args": ["fatebook-mcp"],
       "env": {
         "FATEBOOK_API_KEY": "your-api-key-here"
       }
@@ -120,22 +202,22 @@ Create a `.mcp.json` file in your project:
 }
 ```
 
-Replace `/path/to/fatebook-mcp` with the actual path to where you cloned this repository. As an example, my working configuration looks like:
-
+**Using development/source installation:**
 ```json
-"fatebook": {
-   "command": "/Users/stephenmalina/.local/bin/uv",
-   "args": [
-"--directory",
-     "/Users/stephenmalina/dev/an1lam/fatebook-mcp",
-     "run",
-     "main.py"
-   ],
-   "env": {
-     "FATEBOOK_API_KEY": "NOTMYREALAPIKEYNICETRY"
-   }
+{
+  "mcpServers": {
+    "fatebook": {
+      "command": "uv",
+      "args": ["run", "python", "/path/to/fatebook-mcp/src/fatebook_mcp/__main__.py"],
+      "env": {
+        "FATEBOOK_API_KEY": "your-api-key-here"
+      }
+    }
+  }
 }
 ```
+
+Replace `/path/to/fatebook-mcp` with the actual path to where you cloned this repository.
 
 
 
@@ -169,8 +251,19 @@ This will test all available endpoints and confirm the server is working correct
 
 ### Running the Server Locally
 
+**Using uvx (recommended):**
 ```bash
-uv run python main.py
+uvx --from . fatebook-mcp
+```
+
+**Using uv run:**
+```bash
+uv run python -m fatebook_mcp
+```
+
+**From source during development:**
+```bash
+uv run python src/fatebook_mcp/__main__.py
 ```
 
 The server will start and wait for MCP client connections.
