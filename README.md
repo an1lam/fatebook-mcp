@@ -326,7 +326,7 @@ If Claude Desktop shows "command not found" errors for `uvx`:
 - Forecast values must be between 0.0 and 1.0
 - Question IDs are provided when creating questions
 
-## Claude Examples Examples
+## Examples
 
 ### Claude Desktop
 **Creating and tracking a prediction:**
