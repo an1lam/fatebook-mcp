@@ -146,12 +146,13 @@ async def get_question_resource(question_id: str) -> Question:
 
 @mcp.tool()
 async def resolve_question(
-    questionId: str, resolution: str, questionType: str, apiKey: str = ""
+    ctx: Context, questionId: str, resolution: str, questionType: str, apiKey: str = ""
 ) -> bool:
     """Resolve a Fatebook question with YES/NO/AMBIGUOUS resolution"""
 
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
+        await ctx.error("API key is required but not provided")
         raise ValueError(
             "API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
         )
@@ -159,6 +160,7 @@ async def resolve_question(
     # Validate resolution parameter
     valid_resolutions = ["YES", "NO", "AMBIGUOUS"]
     if resolution not in valid_resolutions:
+        await ctx.error(f"Invalid resolution parameter: {resolution}")
         raise ValueError(f"resolution must be one of {valid_resolutions}")
 
     data = {
@@ -174,14 +176,17 @@ async def resolve_question(
             response.raise_for_status()
             return True
 
-    except httpx.HTTPError:
+    except httpx.HTTPError as e:
+        await ctx.error(f"HTTP error occurred: {e}")
         raise
-    except Exception:
+    except Exception as e:
+        await ctx.error(f"Unexpected error occurred: {e}")
         raise
 
 
 @mcp.tool()
 async def create_question(
+    ctx: Context,
     title: str,
     resolveBy: str,
     forecast: float,
@@ -196,12 +201,14 @@ async def create_question(
 
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
+        await ctx.error("API key is required but not provided")
         raise ValueError(
             "API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
         )
 
     # Validate forecast parameter
     if not 0 <= forecast <= 1:
+        await ctx.error(f"Invalid forecast parameter: {forecast}")
         raise ValueError("forecast must be between 0 and 1")
 
     params: ParamsType = {
@@ -239,30 +246,36 @@ async def create_question(
                     url_title, question_id = slug.rsplit("--", 1)
                     return QuestionReference(id=question_id, title=title)
                 else:
+                    await ctx.error(f"Could not parse question ID from URL: {url}")
                     raise ValueError(f"Could not parse question ID from URL: {url}")
             else:
+                await ctx.error(f"Unexpected response format: {url}")
                 raise ValueError(f"Unexpected response format: {url}")
 
-    except httpx.HTTPError:
+    except httpx.HTTPError as e:
+        await ctx.error(f"HTTP error occurred: {e}")
         raise
-    except Exception:
+    except Exception as e:
+        await ctx.error(f"Unexpected error occurred: {e}")
         raise
 
 
 @mcp.tool()
 async def add_forecast(
-    questionId: str, forecast: float, apiKey: str = "", optionId: str = ""
+    ctx: Context, questionId: str, forecast: float, apiKey: str = "", optionId: str = ""
 ) -> bool:
     """Add a forecast to a Fatebook question"""
 
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
+        await ctx.error("API key is required but not provided")
         raise ValueError(
             "API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
         )
 
     # Validate forecast parameter
     if not 0 <= forecast <= 1:
+        await ctx.error(f"Invalid forecast parameter: {forecast}")
         raise ValueError("forecast must be between 0 and 1")
 
     data = {"questionId": questionId, "forecast": forecast, "apiKey": api_key}
@@ -277,18 +290,21 @@ async def add_forecast(
             response.raise_for_status()
             return True
 
-    except httpx.HTTPError:
+    except httpx.HTTPError as e:
+        await ctx.error(f"HTTP error occurred: {e}")
         raise
-    except Exception:
+    except Exception as e:
+        await ctx.error(f"Unexpected error occurred: {e}")
         raise
 
 
 @mcp.tool()
-async def add_comment(questionId: str, comment: str, apiKey: str = "") -> bool:
+async def add_comment(ctx: Context, questionId: str, comment: str, apiKey: str = "") -> bool:
     """Add a comment to a Fatebook question"""
 
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
+        await ctx.error("API key is required but not provided")
         raise ValueError(
             "API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
         )
@@ -301,18 +317,21 @@ async def add_comment(questionId: str, comment: str, apiKey: str = "") -> bool:
             response.raise_for_status()
             return True
 
-    except httpx.HTTPError:
+    except httpx.HTTPError as e:
+        await ctx.error(f"HTTP error occurred: {e}")
         raise
-    except Exception:
+    except Exception as e:
+        await ctx.error(f"Unexpected error occurred: {e}")
         raise
 
 
 @mcp.tool()
-async def delete_question(questionId: str, apiKey: str = "") -> bool:
+async def delete_question(ctx: Context, questionId: str, apiKey: str = "") -> bool:
     """Delete a Fatebook question"""
 
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
+        await ctx.error("API key is required but not provided")
         raise ValueError(
             "API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
         )
@@ -327,14 +346,17 @@ async def delete_question(questionId: str, apiKey: str = "") -> bool:
             response.raise_for_status()
             return True
 
-    except httpx.HTTPError:
+    except httpx.HTTPError as e:
+        await ctx.error(f"HTTP error occurred: {e}")
         raise
-    except Exception:
+    except Exception as e:
+        await ctx.error(f"Unexpected error occurred: {e}")
         raise
 
 
 @mcp.tool()
 async def edit_question(
+    ctx: Context,
     questionId: str,
     apiKey: str = "",
     title: str = "",
@@ -345,6 +367,7 @@ async def edit_question(
 
     api_key = apiKey or os.getenv("FATEBOOK_API_KEY")
     if not api_key:
+        await ctx.error("API key is required but not provided")
         raise ValueError(
             "API key is required (provide as parameter or set FATEBOOK_API_KEY environment variable)"
         )
@@ -365,14 +388,16 @@ async def edit_question(
             response.raise_for_status()
             return True
 
-    except httpx.HTTPError:
+    except httpx.HTTPError as e:
+        await ctx.error(f"HTTP error occurred: {e}")
         raise
-    except Exception:
+    except Exception as e:
+        await ctx.error(f"Unexpected error occurred: {e}")
         raise
 
 
 @mcp.tool()
-async def count_forecasts(userId: str) -> int:
+async def count_forecasts(ctx: Context, userId: str) -> int:
     """Count forecasts for a specific user"""
 
     params = {"userId": userId}
@@ -386,9 +411,11 @@ async def count_forecasts(userId: str) -> int:
             data = response.json()
             return int(data.get("count", 0))
 
-    except httpx.HTTPError:
+    except httpx.HTTPError as e:
+        await ctx.error(f"HTTP error occurred: {e}")
         raise
-    except Exception:
+    except Exception as e:
+        await ctx.error(f"Unexpected error occurred: {e}")
         raise
 
 
