@@ -13,8 +13,8 @@ mcp = FastMCP("Fatebook MCP Server")
 
 # NOTE: Error handling pattern in this file:
 # - ctx.error() is used for logging/debugging visibility to MCP clients
-# - Exceptions are always re-raised because there's a known bug in the MCP Python SDK 
-#   where exceptions in @mcp.tool() handlers aren't properly converted to JSON-RPC 
+# - Exceptions are always re-raised because there's a known bug in the MCP Python SDK
+#   where exceptions in @mcp.tool() handlers aren't properly converted to JSON-RPC
 #   error responses. See: https://github.com/modelcontextprotocol/python-sdk/issues/396
 
 
